@@ -1,0 +1,3321 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Calendario Operacional</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&family=Archivo:wght@600;700&display=swap">
+<style>[hidden]{display:none!important}body{margin:0}</style>
+</head>
+<body>
+<style>
+/* Layout: barra de herramientas arriba; calendario mensual a la izquierda y panel de tipos/filtros a la derecha; una columna en móvil */
+:root{
+  --bg:#f6f7f5; --surface:#fcfcfb; --fg:#0b0b0b; --fg2:#52514e; --muted:#898781;
+  --line:#dcdcd4; --wknd:#efefea; --accent:#1c5cab; --bad:#d03b3b; --warn:#a86a00; --ok:#006300; --done:#00a33c; --on-done:#ffffff;
+  --f-display:"Archivo",system-ui,sans-serif; --f-body:"IBM Plex Sans",system-ui,sans-serif; --f-mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0d0d0d; --surface:#1a1a19; --fg:#f0efec; --fg2:#c3c2b7; --muted:#898781;
+  --line:#2f2f2c; --wknd:#141413; --accent:#6da7ec; --bad:#e66767; --warn:#e0a020; --ok:#0ca30c; --done:#22c55e; --on-done:#05230f; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0d0d0d; --surface:#1a1a19; --fg:#f0efec; --fg2:#c3c2b7; --muted:#898781;
+  --line:#2f2f2c; --wknd:#141413; --accent:#6da7ec; --bad:#e66767; --warn:#e0a020; --ok:#0ca30c; --done:#22c55e; --on-done:#05230f; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:14px;line-height:1.45}
+.wrap{max-width:1800px;margin:0 auto;padding-block:12px 40px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1{font-family:var(--f-display);font-size:24px;margin:0;letter-spacing:-.01em;text-wrap:balance}
+h2{font-family:var(--f-display);font-size:15px;margin:0}
+.sub{color:var(--fg2);margin:2px 0 0;max-width:80ch}
+.lbl{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.hint{font-size:12px;color:var(--muted);margin:0}
+input,select,textarea{font-family:var(--f-body);font-size:13px;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:5px 7px;min-width:0}
+textarea{font-family:var(--f-mono);font-size:12px;width:100%}
+input[type=color]{padding:0 2px;width:34px;height:28px;cursor:pointer}
+input[type=checkbox]{accent-color:var(--accent);width:15px;height:15px;cursor:pointer}
+:is(input,select,textarea,button,summary):focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+button{font:inherit;font-size:13px;cursor:pointer;border-radius:6px;border:1px solid var(--line);background:var(--surface);color:var(--fg);padding:5px 11px}
+button:hover{border-color:var(--muted)}
+button.pri{background:var(--accent);border-color:var(--accent);color:var(--surface);font-weight:600}
+button.danger{color:var(--bad)}
+button.danger.arm{background:var(--bad);border-color:var(--bad);color:var(--surface)}
+button.x{border:none;background:none;color:var(--muted);padding:2px 6px;font-size:17px;line-height:1}
+button.x:hover{color:var(--bad)}
+
+header.top{display:flex;flex-wrap:wrap;gap:8px 20px;align-items:start;justify-content:space-between;margin-bottom:12px}
+.util{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.util button:not(.x){border-color:transparent;background:none;color:var(--fg2);padding:4px 9px}
+.util button:not(.x):hover{background:var(--surface);border-color:var(--line);color:var(--fg)}
+.tbar{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:8px}
+.tabs{display:flex;flex-wrap:wrap;gap:2px;background:var(--bg);border-radius:8px;padding:3px}
+.tabs button{border:none;background:none;color:var(--fg2);border-radius:6px;padding:5px 12px}
+.tabs button:hover{color:var(--fg);background:color-mix(in srgb,var(--fg) 6%,transparent)}
+.tabs button[aria-pressed=true]{background:var(--surface);color:var(--fg);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.tabs .cnt{display:inline-block;font-size:11px;font-weight:600;min-width:18px;padding:0 5px;margin-left:3px;border-radius:999px;background:color-mix(in srgb,var(--fg) 10%,transparent);text-align:center}
+.fbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px}
+.fbar #q{width:240px;max-width:100%}
+.fbar #btnMore{border-color:transparent;background:none;color:var(--fg2)}
+.fbar #btnMore:hover{color:var(--fg);text-decoration:underline}
+.morep{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;align-items:start;margin-bottom:12px}
+.morep .nx,.morep .types{max-height:280px;overflow:auto}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.nav{display:inline-flex;align-items:center;gap:4px}
+.nav button{border-color:transparent;background:none;font-size:18px;line-height:1;padding:3px 10px}
+.nav button:hover{background:var(--bg)}
+.mon{font-family:var(--f-display);font-size:18px;min-width:5.5em;text-align:center;text-transform:capitalize}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{border:none;border-radius:0;background:var(--surface)}
+.seg button[aria-pressed=true]{background:var(--fg);color:var(--surface)}
+.sync{font-size:12px;color:var(--muted);white-space:nowrap}
+.sync.ok{color:var(--ok)}.sync.warn{color:var(--warn)}.sync.bad{color:var(--bad)}
+
+.banner{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between;background:var(--surface);border:1px dashed var(--muted);border-radius:8px;padding:8px 12px;margin-bottom:12px;font-size:13px;color:var(--fg2)}
+
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:16px;align-items:start}
+@media (max-width:980px){.layout{grid-template-columns:minmax(0,1fr)}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+aside{display:flex;flex-direction:column;gap:12px;min-width:0}
+
+/* Calendario mensual */
+.cal{background:var(--surface);border:1px solid var(--line);border-radius:8px;overflow:hidden;min-width:0}
+/* Lunes a viernes más anchos; sábado y domingo angostos */
+.dow,.weeks .wk{display:grid;grid-template-columns:repeat(5,minmax(0,1fr)) repeat(2,minmax(0,.62fr))}
+@media (max-width:760px){.dow,.weeks .wk{grid-template-columns:repeat(5,minmax(0,1fr)) repeat(2,minmax(0,.7fr))}}
+.dow div{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600;padding:7px 8px;border-bottom:1px solid var(--line)}
+.day{min-height:128px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:4px 4px 6px;display:flex;flex-direction:column;gap:3px;min-width:0;transition:background .1s}
+.wk .day:last-child{border-right:none}
+.day.wknd{background:var(--wknd)}
+.day.wknd .chip{font-size:11px;padding:2px 3px}
+.day.wknd .chip .n i{font-size:11px}.day.wknd .chip .n b{font-size:10px}
+.day.other .dn{color:var(--muted);opacity:.6}
+.day.over{background:color-mix(in srgb,var(--accent) 14%,var(--surface))}
+.dn{font-family:var(--f-mono);font-size:12px;color:var(--fg2);padding:1px 4px;align-self:flex-start;border-radius:999px;cursor:pointer;border:none;background:none}
+.day.today .dn{background:var(--accent);color:var(--surface);font-weight:600}
+.day.today{background:color-mix(in srgb,var(--accent) 5%,var(--surface))}
+.chip{-webkit-user-drag:element;user-select:none;box-sizing:border-box;display:flex;gap:5px;align-items:flex-start;width:100%;min-width:0;cursor:grab;font-size:12px;line-height:1.3;padding:2px 5px 2px 4px;border-radius:4px;border-left:3px solid var(--c);background:color-mix(in srgb,var(--c) 17%,var(--surface));color:var(--fg);transition:background .15s}
+.chip:hover{background:color-mix(in srgb,var(--c) 28%,var(--surface))}
+.chip .cb{display:flex;gap:4px;align-items:baseline;flex:1;min-width:0;cursor:inherit;border-radius:3px}
+.chip .cb:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+/* Cuadrito para marcar la etapa como hecha */
+.ck{all:unset;box-sizing:border-box;flex:none;width:15px;height:15px;margin-top:1px;border-radius:3px;border:1.5px solid color-mix(in srgb,var(--c) 75%,var(--fg));background:var(--surface);cursor:pointer;display:grid;place-items:center;font-size:11px;font-weight:700;line-height:1;color:transparent}
+.ck:hover{border-color:var(--done)}
+.ck:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.ck[aria-checked=true]{background:var(--done);border-color:var(--done);color:var(--on-done)}
+.chip.done{background:color-mix(in srgb,var(--c) 6%,var(--surface));border-left-color:color-mix(in srgb,var(--c) 35%,var(--surface))}
+.chip.done:hover{background:color-mix(in srgb,var(--c) 12%,var(--surface))}
+.chip.done .n b,.chip.done .n i,.chip.done .t{color:var(--muted)}
+.chip .t{font-family:var(--f-mono);font-size:11px;color:var(--fg2);flex:none}
+.chip .n{display:flex;flex-direction:column;min-width:0;flex:1}
+.chip .n b,.chip .n i{white-space:normal;overflow-wrap:break-word;hyphens:auto;min-width:0}
+.chip .n b{font-weight:400;font-size:11px;color:var(--muted)}
+.chip .n i{font-style:normal;font-size:12.5px;font-weight:600;color:var(--fg);line-height:1.25;margin-top:1px}
+.chip.late,.agrow.late{box-shadow:inset 0 0 0 1.5px var(--warn)}
+.latet{display:inline-block;font-size:10.5px;font-weight:700;color:var(--warn);line-height:1.3}
+.chip.out{box-shadow:inset 0 0 0 1.5px var(--bad)}
+.chip.out b{color:var(--bad)}
+.tagx{display:inline-block;font-size:11px;font-weight:600;color:var(--bad);border:1px solid currentColor;border-radius:999px;padding:0 7px;white-space:nowrap}
+.alert{display:flex;flex-direction:column;gap:4px;border:1px solid var(--bad);border-radius:8px;padding:8px 12px;margin-bottom:10px;background:color-mix(in srgb,var(--bad) 8%,var(--surface));font-size:13px}
+.alert b{color:var(--bad)}
+.alert button{all:unset;cursor:pointer;text-decoration:underline;color:var(--fg)}
+.chip.dragging{opacity:.3}
+/* Iniciales del operador */
+.opb{display:inline-block;font-family:var(--f-mono);font-size:10px;font-weight:600;line-height:1.35;padding:0 4px;border-radius:3px;background:var(--fg);color:var(--surface);letter-spacing:.03em;vertical-align:1px}
+.chip.done .opb{background:var(--muted)}
+/* Selector de varios operadores */
+.oplist{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:6px;margin-bottom:10px}
+.oprow{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:6px 10px;border-bottom:1px solid var(--line)}
+.oprow:last-child{border-bottom:0}
+.oprow .opb{font-size:12px;padding:1px 7px}
+.opk{position:relative;min-width:0}
+.opk>summary{list-style:none;cursor:pointer;font-size:13px;border:1px solid var(--line);border-radius:6px;padding:5px 24px 5px 7px;background:var(--bg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:relative}
+.opk>summary::-webkit-details-marker{display:none}
+.opk>summary::after{content:'▾';position:absolute;right:8px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:11px}
+.opk>summary .ph{color:var(--muted)}
+.opk[open]>summary{border-color:var(--accent)}
+.opk .opm{position:absolute;z-index:30;top:calc(100% + 3px);left:0;min-width:max(100%,150px);background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 8px;display:flex;flex-direction:column;gap:4px;box-shadow:0 6px 18px rgba(0,0,0,.14)}
+.opk .opm label{display:flex;align-items:center;gap:7px;font-size:13px;white-space:nowrap;cursor:pointer}
+.opk .opm input{width:auto;flex:none;margin:0;padding:0}
+.opk .opm .hint{font-size:11px;margin:2px 0 0}
+input[data-done],input[data-sdone],#iAllDone{accent-color:var(--done)}
+.more{all:unset;cursor:pointer;font-size:11px;color:var(--fg2);padding:0 5px}
+.more:hover{color:var(--fg);text-decoration:underline}
+@media (max-width:700px){
+  .day{min-height:78px;padding:3px 2px}
+  .chip{padding:1px 3px;font-size:10px;gap:3px}
+  .ck{width:13px;height:13px;font-size:10px}
+  .chip .t,.chip .n i{display:none}
+  .dow div{padding:6px 3px;font-size:10px;letter-spacing:.02em}
+}
+
+/* Agenda */
+.agenda{display:flex;flex-direction:column;gap:14px}
+.agpast{border:1px solid var(--line);border-radius:6px;background:var(--surface)}
+.agpast>summary{list-style:none;cursor:pointer;display:flex;gap:12px;align-items:center;padding:5px 10px;font-size:13px}
+.agpast>summary::-webkit-details-marker{display:none}
+.agpast>summary::before{content:'▸';color:var(--muted);font-size:11px}
+.agpast[open]>summary::before{content:'▾'}
+.agpast .agd{font-family:var(--f-display);font-weight:600;min-width:52px}
+.agpast .agbody{padding:4px 8px 8px}
+.agpast:not([open]){opacity:.8}
+.agenda:has(.agpast){gap:8px}
+.agday h3{font-family:var(--f-display);font-size:14px;margin:0 0 6px;display:flex;gap:8px;align-items:center;text-transform:capitalize}
+.agrow .agop{width:150px}
+.agrow .agop>summary{font-size:12px;padding:3px 22px 3px 7px}
+@media (max-width:560px){.agrow{grid-template-columns:auto minmax(0,1fr) auto !important}.agrow .agop{grid-column:2/-1;width:auto}}
+/* La identificación de la muestra va en negrita; el nombre general de la actividad, más suave */
+.agrow .tx b .lb,.chip .n b .lb{font-weight:700;color:var(--fg)}
+.chip.done .n b .lb{color:var(--muted)}
+.agrow{display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:7px 10px;border:1px solid var(--line);border-left:4px solid var(--c);border-radius:6px;background:var(--surface);margin-bottom:5px;cursor:pointer}
+.agrow:hover{border-color:var(--muted);border-left-color:var(--c)}
+.agrow .tm{font-family:var(--f-mono);font-size:12px;color:var(--fg2)}
+.agrow .tx{min-width:0}
+.agrow .tx b{font-weight:400;color:var(--fg2)}
+.agrow .tx div{font-size:12px;color:var(--fg2);overflow-wrap:anywhere}
+.agrow .stp{font-family:var(--f-mono);font-size:11px;color:var(--muted);white-space:nowrap}
+.agrow.done{background:color-mix(in srgb,var(--c) 5%,var(--surface));border-left-color:color-mix(in srgb,var(--c) 35%,var(--surface))}
+.agrow.done .tx b{color:var(--muted)}
+.tagw{font-size:11px;font-weight:600;color:var(--warn);border:1px solid currentColor;border-radius:999px;padding:0 7px;text-transform:none;letter-spacing:0;font-family:var(--f-body)}
+.empty{padding:28px;text-align:center;color:var(--fg2)}
+
+/* Panel lateral */
+.types{display:flex;flex-direction:column;gap:2px}
+.trow{display:flex;align-items:center;gap:8px;padding:3px 2px;font-size:13px;cursor:pointer}
+.trow .sw{width:12px;height:12px;border-radius:3px;background:var(--c);flex:none}
+.trow .nm{flex:1;min-width:0}
+.trow .ct{font-family:var(--f-mono);font-size:11px;color:var(--muted)}
+.trow.off .nm{color:var(--muted);text-decoration:line-through}
+.nx{display:flex;flex-direction:column;gap:6px}
+.nxr{display:grid;grid-template-columns:8px minmax(0,1fr);gap:8px;font-size:12px;cursor:pointer}
+.nxr .d{width:8px;height:8px;border-radius:50%;background:var(--c);margin-top:5px}
+.nxr .w{font-family:var(--f-mono);font-size:11px;color:var(--fg2)}
+.chk{display:flex;gap:8px;align-items:flex-start;font-size:13px;color:var(--fg2);cursor:pointer}
+.chk input,.fld .chk input{margin-top:2px;flex:none;width:15px}
+
+/* Modales */
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:flex-start;justify-content:center;padding:max(24px,env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right,0px)) 24px max(12px,env(safe-area-inset-left,0px));z-index:50;overflow-y:auto}
+.modal{background:var(--surface);color:var(--fg);border:1px solid var(--line);border-radius:10px;width:min(640px,100%);padding:18px;display:flex;flex-direction:column;gap:14px;box-shadow:0 12px 40px rgba(0,0,0,.25)}
+.modal.wide{width:min(860px,100%)}
+.mh{display:flex;justify-content:space-between;align-items:start;gap:12px}
+.mh h2{font-size:18px}
+.fld{display:flex;flex-direction:column;gap:4px;min-width:0}
+.fld input,.fld select,.fld textarea{width:100%}
+.row2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+@media (max-width:520px){.row2{grid-template-columns:minmax(0,1fr)}}
+.stages{display:flex;flex-direction:column;gap:6px}
+.st{display:grid;grid-template-columns:22px minmax(0,1fr) 78px auto auto;gap:8px;align-items:center;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg)}
+.st .i{font-family:var(--f-mono);font-size:11px;color:var(--muted);text-align:center}
+.st .nm{font-size:13px;min-width:0}
+.st .nm input{width:100%}
+.st .gap{font-family:var(--f-mono);font-size:11px;color:var(--muted)}
+.st input[type=datetime-local]{font-family:var(--f-mono);font-size:12px}
+@media (max-width:560px){.st{grid-template-columns:22px minmax(0,1fr) auto}.st .dt,.st .sop{grid-column:2/-1}}
+.pv{display:flex;flex-direction:column;gap:4px;font-size:13px}
+.pvr{display:grid;grid-template-columns:18px 150px minmax(0,1fr);gap:8px;align-items:center;padding:4px 6px;border-radius:6px;cursor:pointer}
+.pvr:hover{background:var(--bg)}
+.pvr.off{color:var(--muted)}
+.pvr input{width:15px}
+.pv .w{font-family:var(--f-mono);font-size:12px;color:var(--fg2)}
+.mf{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center}
+.mf .bar{gap:8px}
+.tblock{border:1px solid var(--line);border-left:4px solid var(--c);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;background:var(--bg)}
+.thead{display:flex;gap:8px;align-items:center}
+.thead input[type=text]{flex:1;font-weight:600}
+.tst{display:grid;grid-template-columns:minmax(0,1fr) 64px 76px 210px auto;gap:6px;align-items:center}
+.tst input[type=number]{font-family:var(--f-mono)}
+.tst .first{font-size:12px;color:var(--muted);grid-column:2/4}
+@media (max-width:640px){.tst{grid-template-columns:minmax(0,1fr) 60px 70px auto}.tst select[data-ts$="|wk"]{grid-column:1/-2}}
+.msg{font-size:12px;color:var(--bad)}
+.bk{font-size:12px!important;color:var(--muted)}
+.bk.dirty{color:var(--warn)}.bk.dirty::before{content:"● ";}
+.donecard{border:1px solid var(--line);border-left:4px solid var(--c);border-radius:8px;background:var(--surface);padding:10px 12px;display:flex;flex-direction:column;gap:8px;cursor:pointer}
+.donecard:hover{border-color:var(--muted);border-left-color:var(--c)}
+.dh{display:flex;flex-wrap:wrap;justify-content:space-between;gap:6px 12px}
+.okp{font-size:12px;font-weight:600;color:var(--ok)}
+.dg{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:2px 12px;font-size:13px}
+.dg .w{font-family:var(--f-mono);font-size:12px;color:var(--fg2)}
+.autol{max-height:190px;overflow:auto;border:1px solid var(--line);border-radius:6px;background:var(--surface)}
+.autor{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:5px 9px;border-bottom:1px solid var(--line);font-size:13px}
+.autor:last-child{border-bottom:0}
+.autor span:first-child{font-family:var(--f-mono);font-size:12px}
+.autor button{font-size:12px;padding:2px 9px}
+.bkbox{display:flex;flex-direction:column;gap:8px;border:1px solid var(--line);border-radius:8px;padding:12px;background:var(--bg)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--surface);padding:8px 14px;border-radius:8px;font-size:13px;z-index:60;max-width:calc(100% - 32px)}
+/* Envío a procesamiento */
+.envh{display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px;align-items:flex-start}
+.envh .hint{max-width:70ch;margin-top:2px}
+.tblw{overflow-x:auto;min-width:0}
+table.env td .tipo{margin-top:3px;display:inline-block}
+table.env td.estc{white-space:nowrap}
+table.env td.estc .hint{display:block;font-size:11px}
+.est{display:inline-block;font-size:12px;font-weight:600;border-radius:999px;padding:1px 9px;border:1px solid currentColor}
+/* Colores por estado del ripio: horno naranjo, drenaje verde, lavado celeste, programado lila, listo verde fuerte */
+.est.horno{color:#c2570c}
+.est.drenaje{color:#1a7f37}
+.est.lavado{color:#0b78a8}
+.est.prog{color:#7c4dbd}
+.est.listo{color:#fff;background:var(--bad);border-color:var(--bad)}
+.est.sinf{color:#fff;background:var(--bad);border-color:var(--bad)}
+table.env tr.f-sinf td{background:color-mix(in srgb,var(--bad) 20%,var(--surface))}
+table.env tr.f-horno td{background:color-mix(in srgb,#f08a24 22%,var(--surface))}
+table.env tr.f-dre td{background:color-mix(in srgb,#3fb950 18%,var(--surface))}
+table.env tr.f-lav td{background:color-mix(in srgb,#38b6e8 18%,var(--surface))}
+table.env tr.f-prog td{background:color-mix(in srgb,#a77ee0 18%,var(--surface))}
+table.env tr.ready td{background:color-mix(in srgb,var(--done) 40%,var(--surface))}
+table.env tr.ready td.estc .hint{color:var(--fg)}
+.envleg{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px}
+.envleg .est{font-size:11px}
+.est.proc{color:var(--warn)}
+.est.ok{color:var(--muted)}
+table.env select.envcc{min-width:70px;padding-right:2px}
+table.env select.envan{font-size:12px;padding-left:5px;padding-right:2px}
+table.env{border-collapse:collapse;width:100%;min-width:1060px;font-size:13px}
+table.env th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;padding:6px;border-bottom:1px solid var(--line);white-space:nowrap}
+table.env td{padding:4px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
+table.env td input,table.env td select,table.env td textarea{width:100%}
+table.env td textarea.envm{resize:none;overflow:hidden;font-weight:600;line-height:1.35;min-height:30px;white-space:pre-wrap;overflow-wrap:anywhere}
+table.env select.envcc{border-left:4px solid var(--cc)}
+.envtabs{align-self:flex-start}
+.envtabs button{border:0;border-radius:0}
+.envtabs button[aria-pressed="true"]{background:var(--fg);color:var(--surface)}
+table.env tr.fut td{background:color-mix(in srgb,var(--accent) 5%,var(--surface))}
+table.env tr.sent td{background:color-mix(in srgb,var(--done) 9%,var(--surface))}
+table.env td.ckc{text-align:center}
+table.env td.ckc .ck{margin:0 auto;width:20px;height:20px;font-size:14px}
+table.env td.ckc .ck.na{display:flex;align-items:center;justify-content:center;background:var(--bad);border:1px solid var(--bad);color:#fff;border-radius:4px;font-size:12px;font-weight:700;cursor:default}
+.tipo{display:inline-block;font-size:11px;font-weight:600;border-radius:999px;padding:1px 8px;background:color-mix(in srgb,#b5543c 20%,var(--surface));white-space:nowrap}
+.tipo.min{background:color-mix(in srgb,var(--accent) 18%,var(--surface))}
+button.x.arm{color:var(--bad);font-size:12px;font-weight:600}
+/* Estado de pago */
+.seg{flex-wrap:wrap}
+.epks{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
+.epk{display:flex;flex-direction:column;gap:4px;text-align:left;border:1px solid var(--line);border-top:4px solid var(--c);border-radius:8px;background:var(--bg);padding:8px 10px;min-width:0}
+.epk.on{background:var(--surface);border-color:var(--c);box-shadow:0 0 0 1px var(--c)}
+.epk-h{display:flex;gap:6px;align-items:baseline;min-width:0}.epk-h b{font-family:var(--f-display);font-size:15px}.epk-h span{font-size:11px;color:var(--fg2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.epk-v{font-family:var(--f-mono);font-size:15px;font-weight:600}
+.epk-g{display:grid;grid-template-columns:1fr 1fr;gap:0 8px;font-size:11px;color:var(--fg2)}.epk-g b{color:var(--fg);font-family:var(--f-mono)}
+.eps{border:1px solid var(--line);border-radius:8px;background:var(--surface);display:flex;flex-direction:column;gap:12px;padding:14px;min-width:0}
+.eps-head{display:flex;flex-wrap:wrap;gap:10px 20px;justify-content:space-between;align-items:flex-start;padding-bottom:10px;border-bottom:2px solid var(--fg)}
+.eps-head h3{font-family:var(--f-display);font-size:18px;margin:2px 0}
+.eps-tot{display:flex;flex-direction:column;align-items:flex-end;gap:2px}.eps-tot b{font-family:var(--f-mono);font-size:24px}
+.eps-sec{display:flex;flex-direction:column;gap:4px}
+.eps-sh{display:flex;justify-content:space-between;gap:10px;padding:5px 8px;background:var(--bg);border-radius:4px;font-size:13px}.eps-sh span{font-family:var(--f-mono)}
+table.ept{border-collapse:collapse;width:100%;min-width:900px;font-size:12px;font-variant-numeric:tabular-nums}
+table.ept th{text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;padding:5px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
+table.ept td{padding:4px 6px;border-bottom:1px solid var(--line);vertical-align:middle}
+table.ept .r{text-align:right;font-family:var(--f-mono);white-space:nowrap}
+table.ept tr.z td{color:var(--muted)}
+table.ept tr.cal td:first-child{box-shadow:inset 3px 0 0 var(--accent)}
+table.ept input[type=number]{width:72px;text-align:right;font-family:var(--f-mono)}
+table.ept input[type=text]{width:100%;min-width:160px}
+.tagc{font-size:10px;font-weight:600;color:var(--accent);border:1px solid currentColor;border-radius:999px;padding:0 6px;white-space:nowrap}
+.epcc{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:6px;margin-top:6px}
+.epcc label{display:flex;gap:8px;align-items:center;justify-content:space-between;font-size:13px;color:var(--fg)}
+.dg .w{font-family:var(--f-mono);font-size:12px;color:var(--fg2)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Calendario Operacional</h1>
+      <p class="sub">Programa una actividad y el calendario calcula sus etapas.</p>
+    </div>
+    <div class="util">
+      <button id="btnTypes" type="button">⚙ Tipos de actividad</button>
+      <button id="btnOps" type="button">👥 Operadores</button>
+      <button id="btnBackup" type="button">💾 Respaldo</button>
+      <button class="x" id="bkStatus" type="button" style="font-size:12px"></button>
+    </div>
+  </header>
+
+  <div class="banner" id="sampleBanner" hidden>
+    <span>Las actividades marcadas «Ejemplo» son de muestra para que veas cómo funciona.</span>
+    <button id="btnClearSamples" type="button">Borrar ejemplos</button>
+  </div>
+
+  <div class="tbar">
+    <div class="nav">
+      <button id="prev" type="button" aria-label="Mes anterior">‹</button>
+      <span class="mon" id="monLbl"></span>
+      <button id="next" type="button" aria-label="Mes siguiente">›</button>
+    </div>
+    <div class="tabs" role="group" aria-label="Vista">
+      <button type="button" id="vMonth" aria-pressed="true">📅 Mes</button>
+      <button type="button" id="vAgenda" aria-pressed="false">📋 Agenda</button>
+      <button type="button" id="vDone" aria-pressed="false">✓ Completadas</button>
+      <button type="button" id="vEnv" aria-pressed="false">📦 Envíos</button>
+      <button type="button" id="vEp" aria-pressed="false">💲 Estado de pago</button>
+    </div>
+    <button class="pri" id="btnNew" type="button">+ Programar actividad</button>
+  </div>
+
+  <div class="fbar">
+    <input id="q" type="search" placeholder="🔍 Buscar muestra o columna" aria-label="Buscar muestra o columna">
+    <select id="fOp" aria-label="Operador"><option value="">Todos los operadores</option><option value="SR">SR</option><option value="DV">DV</option><option value="JM">JM</option><option value="FG">FG</option><option value="-">Sin asignar</option></select>
+    <button type="button" id="btnMore" aria-expanded="false">Más opciones ▾</button>
+  </div>
+  <div class="morep" id="more" hidden>
+    <div class="panel">
+      <label class="chk"><input type="checkbox" id="follow" checked> Al mover una etapa, mover también las siguientes</label>
+      <div class="fld"><label class="lbl" for="pDay">Imprimir un día</label><div style="display:flex;gap:6px"><input id="pDay" type="date" style="flex:1"><button type="button" id="pBtn">🖨 Imprimir</button></div></div>
+    </div>
+    <div class="panel">
+      <div style="display:flex;justify-content:space-between;align-items:baseline"><h2>Tipos</h2><span class="lbl" id="typesLbl"></span></div>
+      <div class="types" id="typeList"></div>
+      <p class="hint">Haz clic en un tipo para ocultarlo o mostrarlo.</p>
+    </div>
+    <div class="panel">
+      <h2>Próximas etapas</h2>
+      <div class="nx" id="nextList"></div>
+    </div>
+  </div>
+
+  <main id="main" style="min-width:0"></main>
+</div>
+<div class="ov" id="ov" hidden><div class="modal" id="modal" role="dialog" aria-modal="true"></div></div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+(function(){
+const $ = id => document.getElementById(id);
+const esc = s => String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad = n => String(n).padStart(2,'0');
+const parse = s => { const [d,t='00:00'] = String(s).split('T'); const [y,m,dd] = d.split('-').map(Number); const [h,mi] = t.split(':').map(Number); return new Date(y,m-1,dd,h||0,mi||0); };
+const fmt = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+const dkey = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const hm = d => `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+const isWk = d => d.getDay()===0 || d.getDay()===6;
+const DOW = ['dom','lun','mar','mié','jue','vie','sáb'];
+const MON = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+const MONL = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+const short = d => `${DOW[d.getDay()]} ${d.getDate()} ${MON[d.getMonth()]}`;   // solo fecha: las horas no se muestran
+const uid = () => Math.random().toString(36).slice(2,9);
+function step(d, after, unit){ const x = new Date(d); if (unit==='d') x.setDate(x.getDate()+ +after); else x.setMinutes(x.getMinutes()+Math.round(+after*60)); return x; }
+const gapTxt = s => s.unit==='d' ? `+${s.after} ${+s.after===1?'día':'días'}` : `+${s.after} h`;
+
+const DEFAULT_TYPES = [
+  {id:'carga', name:'Carga de columna', color:'#1f6f8b', labelHint:'N° de columna, ej: 230', extraStage:'Inicio riego {n}', stages:[
+    {name:'Preparación de soluciones',after:0,unit:'h'},{name:'Carga de columna',after:1,unit:'d'},{name:'Inicio riego 1',after:6,unit:'d'}],
+   fields:[{key:'thum',label:'T° humectación'},{key:'trep',label:'T° reposo'},{key:'trieg',label:'T° riego'},{key:'obs',label:'Observación'}]},
+  {id:'desc', name:'Lavado y descarga de columna', color:'#b5543c', labelHint:'N° de columna, ej: 230', stages:[
+    {name:'Inicio lavado de columna (5 días)',after:0,unit:'h'},{name:'Inicio drenaje de columna (3 días)',after:5,unit:'d'},{name:'Descarga de columna y muestreo + ingreso a secado',after:3,unit:'d'},{name:'Salida del horno y pesaje de ripio seco',after:4,unit:'d'}],
+   fields:[{key:'ripio',label:'Muestras de ripio enviadas a procesamiento',type:'check'},{key:'feriado',label:'Consideración feriado',type:'date'},{key:'envios',label:'Envíos',type:'select',options:['','Si','No']},
+     {key:'area',label:'Columna1 (área: NG, VC, AB…)'},{key:'mineral',label:'Columna2 (ID mineral)'},{key:'analisis',label:'Análisis',type:'select',options:['','Cu, CuSec, Fe, Fe Soluble','Cu, CuSec, Fe, Fe Soluble, Mo, Ag, Au, Co, Ni']}]},
+  {id:'sulf', name:'Sulfatación', color:'#2a78d6', stages:[
+    {name:'Preparación solución de sulfatación',after:0,unit:'h'},{name:'Inicio sulfatación',after:24,unit:'h'},
+    {name:'Lavado',after:6,unit:'d'},{name:'Retiro del horno',after:3,unit:'d'}]},
+  {id:'acid', name:'Consumo de ácido', color:'#e34948', stages:[
+    {name:'Preparación de reactivo',after:0,unit:'h'},{name:'Inicio consumo de ácido',after:24,unit:'h'},{name:'Término',after:24,unit:'h'}]},
+  {id:'pla', name:'PLA', color:'#1baf7a', stages:[
+    {name:'Preparación solución PLA',after:0,unit:'h'},{name:'Aglomeración',after:24,unit:'h'},
+    {name:'Inicio PLA',after:6,unit:'d'},{name:'Filtrado',after:24,unit:'h'}]},
+  {id:'ctx', name:'Medición CTX', color:'#6250d6', stages:[{name:'Medición CTX',after:0,unit:'h'}]},
+  {id:'chag', name:'Conductividad hidráulica con aglomerado', color:'#eb6834', stages:[
+    {name:'Preparación de solución',after:0,unit:'h'},{name:'Aglomerado',after:24,unit:'h'},
+    {name:'Inicio inundación',after:6,unit:'d'},{name:'Inicio prueba',after:58,unit:'h'},{name:'Drenaje',after:1,unit:'d'}]},
+  {id:'chsa', name:'Conductividad hidráulica sin aglomerado', color:'#c98a00', stages:[
+    {name:'Carga e inicio de riego',after:0,unit:'h'},{name:'Inicio prueba',after:58,unit:'h'},
+    {name:'Drenaje',after:1,unit:'d'},{name:'Descarga',after:1,unit:'d'}]},
+  {id:'sx', name:'Extracción por solventes (SX)', color:'#0e8f9e', stages:[
+    {name:'Preparación solución de lavado y EP',after:0,unit:'h'},{name:'Proceso SX (≈20 L en el día)',after:24,unit:'h'},
+    {name:'Acumulación y lavado SX',after:24,unit:'h'}]},
+  {id:'hum', name:'Prueba de humedad', color:'#e87ba4', stages:[
+    {name:'Carga e inicio de riego',after:0,unit:'h'},{name:'Revisión de flujo de riego',after:24,unit:'h'},
+    {name:'Término, descarga de columna húmeda e ingreso a horno',after:24,unit:'h'},{name:'Salida del horno',after:3,unit:'d'}]},
+  {id:'dreal', name:'Densidad real', color:'#8b5e34', stages:[{name:'Inicio densidad real',after:0,unit:'h'},{name:'Término densidad real',after:24,unit:'h'}]},
+  {id:'dap', name:'Densidad aparente', color:'#5f7d2a', stages:[{name:'Determinación densidad aparente',after:0,unit:'h'}]},
+  {id:'rom', name:'Soluciones SGS ROM', color:'#3b4a8f', stages:[
+    {name:'Inicio ROM',after:0,unit:'h'},{name:'Término ROM',after:24,unit:'h'},{name:'Retiro ROM',after:24,unit:'h'}]},
+  {id:'sgs', name:'Soluciones SGS', color:'#9a3fa0', stages:[{name:'Preparación de solución',after:0,unit:'h'},{name:'Envío de solución',after:24,unit:'h'}]},
+];
+const PALETTE = ['#2a78d6','#e34948','#1baf7a','#6250d6','#eb6834','#c98a00','#0e8f9e','#e87ba4','#8b5e34','#5f7d2a','#3b4a8f','#9a3fa0'];
+
+/* Regla de fin de semana por etapa: 'shift' corre al siguiente día hábil (ingreso/salida de ripio del horno), 'warn' avisa fuera de rango */
+const SHIFT_RE = /horno|ripio|pesaje|secad|seco/i;
+const ruleOf = s => (SHIFT_RE.test(s.name) || s.wk==='shift') ? 'shift' : 'warn';
+const DAYN = ['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+function nextWeekday(d){ const x=new Date(d); while (isWk(x)) x.setDate(x.getDate()+1); return x; }
+const outOfRange = s => ruleOf(s)==='warn' && isWk(parse(s.at));
+function runChain(type, start, from, sel){
+  let cur = parse(start); const out = [];
+  for (let i=from; i<type.stages.length; i++){
+    const s = type.stages[i];
+    if (i>from) cur = step(cur, s.after, s.unit);
+    let moved = false;
+    if (ruleOf(s)==='shift' && isWk(cur)){ moved = DAYN[cur.getDay()]; cur = nextWeekday(cur); }
+    if (!sel || sel.has(i)) out.push({name:s.name, at:fmt(cur), done:false, wk:ruleOf(s), i, moved});
+  }
+  return out;
+}
+function buildStages(type, start){ return runChain(type, start, 0).map(({name,at,done,wk})=>({name,at,done,wk})); }
+function sampleState(){
+  const types = JSON.parse(JSON.stringify(DEFAULT_TYPES));
+  return {types, items:[]};
+}
+
+const KEY = 'labcal-v2';
+let state;
+try { state = JSON.parse(localStorage.getItem(KEY)||'null'); } catch(e){ state = null; }
+if (!state || !Array.isArray(state.types) || !Array.isArray(state.items)) state = sampleState();
+/* Actividades traídas del calendario compartido: se agregan una sola vez, sin borrar ni cambiar lo que ya hay */
+const SEED = {
+ "v": "compartido-2026-11-18-1654",
+ "cfg": {
+  "types": [
+   {
+    "color": "#1f6f8b",
+    "extraStage": "Inicio riego {n}",
+    "fields": [
+     {
+      "key": "thum",
+      "label": "T° humectación"
+     },
+     {
+      "key": "trep",
+      "label": "T° reposo"
+     },
+     {
+      "key": "trieg",
+      "label": "T° riego"
+     },
+     {
+      "key": "obs",
+      "label": "Observación"
+     }
+    ],
+    "id": "carga",
+    "labelHint": "N° de columna, ej: 230",
+    "name": "Carga de columna",
+    "stages": [
+     {
+      "after": 0,
+      "name": "Preparación de soluciones",
+      "unit": "h"
+     },
+     {
+      "after": 1,
+      "name": "Carga de columna",
+      "unit": "d"
+     },
+     {
+      "after": 6,
+      "name": "Inicio riego 1",
+      "unit": "d"
+     }
+    ]
+   },
+   {
+    "color": "#b5543c",
+    "fields": [
+     {
+      "key": "ripio",
+      "label": "Muestras de ripio enviadas a procesamiento",
+      "type": "check"
+     },
+     {
+      "key": "feriado",
+      "label": "Consideración feriado",
+      "type": "date"
+     },
+     {
+      "key": "envios",
+      "label": "Envíos",
+      "options": [
+       "",
+       "Si",
+       "No"
+      ],
+      "type": "select"
+     },
+     {
+      "key": "area",
+      "label": "Columna1 (área: NG, VC, AB…)"
+     },
+     {
+      "key": "mineral",
+      "label": "Columna2 (ID mineral)"
+     },
+     {
+      "key": "analisis",
+      "label": "Análisis",
+      "options": [
+       "",
+       "Cu, CuSec, Fe, Fe Soluble",
+       "Cu, CuSec, Fe, Fe Soluble, Mo, Ag, Au, Co, Ni"
+      ],
+      "type": "select"
+     }
+    ],
+    "id": "desc",
+    "labelHint": "N° de columna, ej: 230",
+    "name": "Lavado y descarga de columna",
+    "stages": [
+     {
+      "after": 0,
+      "name": "Inicio lavado de columna (5 días)",
+      "unit": "h"
+     },
+     {
+      "after": 5,
+      "name": "Inicio drenaje de columna (3 días)",
+      "unit": "d"
+     },
+     {
+      "after": 3,
+      "name": "Descarga de columna y muestreo + ingreso a secado",
+      "unit": "d"
+     },
+     {
+      "after": 4,
+      "name": "Salida del horno y pesaje de ripio seco",
+      "unit": "d"
+     }
+    ]
+   },
+   {
+    "color": "#2a78d6",
+    "id": "sulf",
+    "name": "Sulfatación",
+    "stages": [
+     {
+      "after": 0,
+      "name": "Preparación solución de sulfatación",
+      "unit": "h"
+     },
+     {
+      "after": 24,
+      "name": "Inicio sulfatación",
+      "unit": "h"
+     },
+     {
+      "after": 6,
+      "name": "Lavado",
+      "unit": "d"
+     },
+     {
+      "after": 3,
+      "name": "Retiro del horno",
+      "unit": "d"
+     }
+    ]
+   },
+   {
+    "color": "#e34948",
+    "id": "acid",
+    "name": "Consumo de ácido",
+    "stages": [
+     {
+      "after": 0,
+      "name": "Preparación de reactivo",
+      "unit": "h"
+     },
+     {
+      "after": 24,
+      "name": "Inicio consumo de ácido",
+      "unit": "h"
+     },
+     {
+      "after": 24,
+      "name": "Término",
+      "unit": "h"
+     }
+    ]
+   },
+   {
+    "color": "#1baf7a",
+    "id": "pla",
+    "name": "PLA",
+    "stages": [
+     {
+      "after": 0,
+      "name": "Preparación solución PLA",
+      "unit": "h"
+     },
+     {
+      "after": 24,
+      "name": "Aglomeración",
+      "unit": "h"
+     },
+     {
+      "after": 6,
+      "name": "Inicio PLA",
+      "unit": "d"
+     },
+     {
+      "after": 24,
+      "name": "Filtrado",
+      "unit": "h"
+     }
+    ]
+   },
+   {
+    "color": "#6250d6",
+    "id": "ctx",
+    "name": "Medición CTX",
+    "stages": [
+     {
+      "after": 0,
+      "name": "Medición CTX",
+      "unit": "h"
+     }
+    ]
+   },
+   {
+    "color": "#eb6834",
+    "id": "chag",
+    "name": "Conductividad hidráulica con aglomerado",
+    "stages": [
+     {
+      "after": 0,
+      "name": "Preparación de solución",
+      "unit": "h"
+     },
+     {
+      "after": 24,
+      "name": "Aglomerado",
+      "unit": "h"
+     },
+     {
+      "after": 6,
+      "name": "Inicio inundación",
+      "unit": "d"
+     },
+     {
+      "after": 58,
+      "name": "Inicio prueba",
+      "unit": "h"
+     },
+     {
+      "after": 1,
+      "name": "Drenaje",
+      "unit": "d"
+     }
+    ]
+   },
+   {
+    "color": "#c98a00",
+    "id": "chsa",
+    "name": "Conductividad hidráulica sin aglomerado",
+    "stages": [
+     {
+      "after": 0,
+      "name": "Carga e inicio de riego",
+      "unit": "h"
+     },
+     {
+      "after": 58,
+      "name": "Inicio prueba",
+      "unit": "h"
+     },
+     {
+      "after": 1,
+      "name": "Drenaje",
+      "unit": "d"
+     },
+     {
+      "after": 1,
+      "name": "Descarga",
+      "unit": "d"
+     }
+    ]
+   },
+   {
+    "color": "#0e8f9e",
+    "id": "sx",
+    "name": "Extracción por solventes (SX)",
+    "stages": [
+     {
+      "after": 0,
+      "name": "Preparación solución de lavado y EP",
+      "unit": "h"
+     },
+     {
+      "after": 24,
+      "name": "Proceso SX (≈20 L en el día)",
+      "unit": "h"
+     },
+     {
+      "after": 24,
+      "name": "Acumulación y lavado SX",
+      "unit": "h"
+     }
+    ]
+   },
+   {
+    "color": "#e87ba4",
+    "id": "hum",
+    "name": "Prueba de humedad",
+    "stages": [
+     {
+      "after": 0,
+      "name": "Carga e inicio de riego",
+      "unit": "h"
+     },
+     {
+      "after": 4,
+      "name": "Revisión de flujo de riego",
+      "unit": "h"
+     },
+     {
+      "after": 6,
+      "name": "Término, descarga de columna húmeda e ingreso a horno",
+      "unit": "h"
+     },
+     {
+      "after": 3,
+      "name": "Salida del horno",
+      "unit": "d"
+     }
+    ]
+   },
+   {
+    "color": "#8b5e34",
+    "id": "dreal",
+    "name": "Densidad real",
+    "stages": [
+     {
+      "after": 0,
+      "name": "Inicio densidad real",
+      "unit": "h"
+     },
+     {
+      "after": 24,
+      "name": "Término densidad real",
+      "unit": "h"
+     }
+    ]
+   },
+   {
+    "color": "#5f7d2a",
+    "id": "dap",
+    "name": "Densidad aparente",
+    "stages": [
+     {
+      "after": 0,
+      "name": "Determinación densidad aparente",
+      "unit": "h"
+     }
+    ]
+   },
+   {
+    "color": "#3b4a8f",
+    "id": "rom",
+    "name": "Soluciones SGS ROM",
+    "stages": [
+     {
+      "after": 0,
+      "name": "Inicio ROM",
+      "unit": "h"
+     },
+     {
+      "after": 24,
+      "name": "Término ROM",
+      "unit": "h"
+     },
+     {
+      "after": 24,
+      "name": "Retiro ROM",
+      "unit": "h"
+     }
+    ]
+   },
+   {
+    "color": "#9a3fa0",
+    "id": "sgs",
+    "name": "Soluciones SGS",
+    "stages": [
+     {
+      "after": 0,
+      "name": "Preparación de solución",
+      "unit": "h"
+     },
+     {
+      "after": 24,
+      "name": "Envío de solución",
+      "unit": "h"
+     }
+    ]
+   }
+  ]
+ },
+ "items": [
+  {
+   "fields": {},
+   "id": "1llg3ze",
+   "label": "SULFATACION 38 A LA 40",
+   "notes": "Mineral 21",
+   "stages": [
+    {
+     "at": "2026-11-09T09:00",
+     "done": true,
+     "name": "Preparación solución de sulfatación"
+    },
+    {
+     "at": "2026-11-10T09:00",
+     "done": true,
+     "name": "Inicio sulfatación"
+    },
+    {
+     "at": "2026-11-16T09:00",
+     "done": true,
+     "name": "Lavado"
+    },
+    {
+     "at": "2026-11-19T09:00",
+     "done": false,
+     "name": "Retiro del horno"
+    }
+   ],
+   "typeId": "sulf",
+   "cc": "RD"
+  },
+  {
+   "fields": {},
+   "id": "4f3t02r",
+   "label": "Sulfataciones 29a la 36",
+   "notes": "M-03-M-056",
+   "stages": [
+    {
+     "at": "2026-11-04T09:00",
+     "done": true,
+     "name": "Preparación solución de sulfatación"
+    },
+    {
+     "at": "2026-11-05T09:00",
+     "done": true,
+     "name": "Inicio sulfatación"
+    },
+    {
+     "at": "2026-11-11T09:00",
+     "done": true,
+     "name": "Lavado"
+    },
+    {
+     "at": "2026-11-16T09:00",
+     "done": true,
+     "name": "Retiro del horno"
+    }
+   ],
+   "typeId": "sulf",
+   "completedAt": "2026-11-18T12:29:28.888Z",
+   "cc": "RD"
+  },
+  {
+   "fields": {
+    "analisis": "Cu, CuSec, Fe, Fe Soluble",
+    "area": "IF",
+    "envios": "Si",
+    "mineral": "M-20C",
+    "ripio": "Sí"
+   },
+   "id": "bp1bbhx",
+   "label": "COL 310-312",
+   "notes": "",
+   "stages": [
+    {
+     "at": "2026-11-18T09:00",
+     "done": true,
+     "name": "Inicio lavado de columna (5 días)"
+    },
+    {
+     "at": "2026-11-23T09:00",
+     "done": false,
+     "name": "Inicio drenaje de columna (3 días)"
+    },
+    {
+     "at": "2026-11-26T09:00",
+     "done": false,
+     "name": "Descarga de columna y muestreo + ingreso a secado"
+    },
+    {
+     "at": "2026-11-30T09:00",
+     "done": false,
+     "name": "Salida del horno y pesaje de ripio seco"
+    }
+   ],
+   "typeId": "desc"
+  },
+  {
+   "fields": {
+    "analisis": "Cu, CuSec, Fe, Fe Soluble, Mo, Ag, Au, Co, Ni",
+    "area": "MS",
+    "envios": "Si",
+    "mineral": "M-97"
+   },
+   "id": "c6xx2kr",
+   "label": "COL 325-326",
+   "notes": "",
+   "stages": [
+    {
+     "at": "2026-11-13T09:00",
+     "done": true,
+     "name": "Inicio lavado de columna (5 días)"
+    },
+    {
+     "at": "2026-11-18T09:00",
+     "done": true,
+     "name": "Inicio drenaje de columna (3 días)"
+    },
+    {
+     "at": "2026-11-23T09:00",
+     "done": false,
+     "name": "Descarga de columna y muestreo + ingreso a secado"
+    },
+    {
+     "at": "2026-11-27T09:00",
+     "done": false,
+     "name": "Salida del horno y pesaje de ripio seco"
+    }
+   ],
+   "typeId": "desc"
+  },
+  {
+   "fields": {
+    "analisis": "Cu, CuSec, Fe, Fe Soluble, Mo, Ag, Au, Co, Ni",
+    "area": "MS",
+    "envios": "Si",
+    "mineral": "M-97",
+    "ripio": "Sí"
+   },
+   "id": "fld41gt",
+   "label": "COL 327",
+   "notes": "",
+   "stages": [
+    {
+     "at": "2026-11-24T09:00",
+     "done": false,
+     "name": "Inicio lavado de columna (5 días)"
+    },
+    {
+     "at": "2026-11-29T09:00",
+     "done": false,
+     "name": "Inicio drenaje de columna (3 días)"
+    },
+    {
+     "at": "2026-12-02T09:00",
+     "done": false,
+     "name": "Descarga de columna y muestreo + ingreso a secado"
+    },
+    {
+     "at": "2026-12-07T09:00",
+     "done": false,
+     "name": "Salida del horno y pesaje de ripio seco"
+    }
+   ],
+   "typeId": "desc"
+  },
+  {
+   "fields": {
+    "analisis": "Cu, CuSec, Fe, Fe Soluble, Mo, Ag, Au, Co, Ni",
+    "area": "MS",
+    "envios": "Si",
+    "mineral": "M-58",
+    "ripio": "Sí"
+   },
+   "id": "idpdvc7",
+   "label": "COL 320",
+   "notes": "",
+   "stages": [
+    {
+     "at": "2026-11-10T09:00",
+     "done": true,
+     "name": "Inicio lavado de columna (5 días)"
+    },
+    {
+     "at": "2026-11-15T09:00",
+     "done": true,
+     "name": "Inicio drenaje de columna (3 días)"
+    },
+    {
+     "at": "2026-11-18T09:00",
+     "done": true,
+     "name": "Descarga de columna y muestreo + ingreso a secado"
+    },
+    {
+     "at": "2026-11-23T09:00",
+     "done": false,
+     "name": "Salida del horno y pesaje de ripio seco"
+    }
+   ],
+   "typeId": "desc"
+  },
+  {
+   "fields": {},
+   "id": "q3rs1v3",
+   "label": "Mineral 20 C",
+   "notes": "",
+   "stages": [
+    {
+     "at": "2026-11-17T09:00",
+     "done": true,
+     "name": "Determinación densidad aparente"
+    }
+   ],
+   "typeId": "dap",
+   "completedAt": "2026-11-18T11:20:28.845Z",
+   "cc": "IF"
+  },
+  {
+   "fields": {},
+   "id": "rl3gudy",
+   "label": "MINERAL 20 C",
+   "notes": "",
+   "stages": [
+    {
+     "at": "2026-11-17T09:00",
+     "done": true,
+     "name": "Inicio densidad real"
+    },
+    {
+     "at": "2026-11-18T09:00",
+     "done": true,
+     "name": "Término densidad real"
+    }
+   ],
+   "typeId": "dreal",
+   "completedAt": "2026-11-18T19:00:10.230Z",
+   "cc": "IF"
+  },
+  {
+   "fields": {
+    "analisis": "Cu, CuSec, Fe, Fe Soluble",
+    "area": "IF",
+    "envios": "Si",
+    "mineral": "M-49"
+   },
+   "id": "w10r05s",
+   "label": "COL 356-357",
+   "notes": "",
+   "stages": [
+    {
+     "at": "2026-11-16T09:00",
+     "done": true,
+     "name": "Inicio lavado de columna (5 días)"
+    },
+    {
+     "at": "2026-11-21T09:00",
+     "done": false,
+     "name": "Inicio drenaje de columna (3 días)"
+    },
+    {
+     "at": "2026-11-24T09:00",
+     "done": false,
+     "name": "Descarga de columna y muestreo + ingreso a secado"
+    },
+    {
+     "at": "2026-11-30T09:00",
+     "done": false,
+     "name": "Salida del horno y pesaje de ripio seco"
+    }
+   ],
+   "typeId": "desc"
+  },
+  {
+   "fields": {
+    "analisis": "Cu, CuSec, Fe, Fe Soluble",
+    "area": "IF",
+    "envios": "Si",
+    "mineral": "M-66",
+    "ripio": "Sí"
+   },
+   "id": "xj0ek7b",
+   "label": "COL 358-359",
+   "notes": "",
+   "stages": [
+    {
+     "at": "2026-11-09T09:00",
+     "done": true,
+     "name": "Inicio lavado de columna (5 días)"
+    },
+    {
+     "at": "2026-11-14T09:00",
+     "done": true,
+     "name": "Inicio drenaje de columna (3 días)"
+    },
+    {
+     "at": "2026-11-17T09:00",
+     "done": true,
+     "name": "Descarga de columna y muestreo + ingreso a secado"
+    },
+    {
+     "at": "2026-11-23T09:00",
+     "done": false,
+     "name": "Salida del horno y pesaje de ripio seco"
+    }
+   ],
+   "typeId": "desc"
+  },
+  {
+   "fields": {},
+   "id": "xzdcfy6",
+   "label": "CH 5-6",
+   "notes": "M-100",
+   "stages": [
+    {
+     "at": "2026-11-16T09:00",
+     "done": true,
+     "name": "Carga e inicio de riego"
+    },
+    {
+     "at": "2026-11-18T19:00",
+     "done": true,
+     "name": "Inicio prueba"
+    },
+    {
+     "at": "2026-11-19T19:00",
+     "done": false,
+     "name": "Drenaje"
+    },
+    {
+     "at": "2026-11-20T19:00",
+     "done": false,
+     "name": "Descarga"
+    }
+   ],
+   "typeId": "chsa",
+   "cc": "IF"
+  },
+  {
+   "id": "oj7aq90",
+   "typeId": "rom",
+   "label": "16-13",
+   "notes": "",
+   "fields": {},
+   "stages": [
+    {
+     "name": "Inicio ROM",
+     "at": "2026-11-16T09:00",
+     "done": true
+    },
+    {
+     "name": "Término ROM",
+     "at": "2026-11-17T09:00",
+     "done": true
+    },
+    {
+     "name": "Retiro ROM",
+     "at": "2026-11-18T09:00",
+     "done": false
+    }
+   ]
+  },
+  {
+   "id": "tvzxasz",
+   "typeId": "dreal",
+   "label": "M100",
+   "notes": "",
+   "fields": {},
+   "stages": [
+    {
+     "name": "Inicio densidad real",
+     "at": "2026-11-17T09:00",
+     "done": true
+    },
+    {
+     "name": "Término densidad real",
+     "at": "2026-11-18T09:00",
+     "done": true
+    }
+   ],
+   "completedAt": "2026-11-18T19:00:18.469Z",
+   "cc": "IF"
+  },
+  {
+   "id": "hbtoigx",
+   "typeId": "dap",
+   "label": "M 100",
+   "notes": "",
+   "fields": {},
+   "stages": [
+    {
+     "name": "Determinación densidad aparente",
+     "at": "2026-11-17T09:00",
+     "done": true
+    }
+   ],
+   "completedAt": "2026-11-18T11:20:54.906Z",
+   "cc": "IF"
+  },
+  {
+   "id": "6o7t725",
+   "typeId": "hum",
+   "label": "M-100",
+   "notes": "",
+   "fields": {},
+   "stages": [
+    {
+     "name": "Carga e inicio de riego",
+     "at": "2026-11-18T09:00",
+     "done": true
+    },
+    {
+     "name": "Revisión de flujo de riego",
+     "at": "2026-11-18T13:00",
+     "done": true
+    },
+    {
+     "name": "Término, descarga de columna húmeda e ingreso a horno",
+     "at": "2026-11-18T19:00",
+     "done": true
+    },
+    {
+     "name": "Salida del horno",
+     "at": "2026-11-23T19:00",
+     "done": false
+    }
+   ],
+   "cc": "IF"
+  },
+  {
+   "id": "tw3u31c",
+   "typeId": "desc",
+   "label": "COL 351-352",
+   "notes": "",
+   "fields": {
+    "envios": "Si",
+    "area": "IF",
+    "analisis": "Cu, CuSec, Fe, Fe Soluble"
+   },
+   "stages": [
+    {
+     "name": "Descarga de columna y muestreo + ingreso a secado",
+     "at": "2026-11-19T09:00",
+     "done": false
+    },
+    {
+     "name": "Salida del horno y pesaje de ripio seco",
+     "at": "2026-11-23T09:00",
+     "done": false
+    }
+   ]
+  },
+  {
+   "id": "lev-c0",
+   "typeId": "carga",
+   "label": "COL 310-312",
+   "cc": "IF",
+   "fields": {},
+   "notes": "Fecha de carga tomada del Levantamiento general",
+   "stages": [
+    {
+     "name": "Carga de columna",
+     "at": "2026-07-09T09:00",
+     "done": true
+    }
+   ]
+  },
+  {
+   "id": "lev-c1",
+   "typeId": "carga",
+   "label": "COL 313-314-316",
+   "cc": "MS",
+   "fields": {},
+   "notes": "Fecha de carga tomada del Levantamiento general",
+   "stages": [
+    {
+     "name": "Carga de columna",
+     "at": "2026-07-15T09:00",
+     "done": true
+    }
+   ]
+  },
+  {
+   "id": "lev-c2",
+   "typeId": "carga",
+   "label": "COL 319",
+   "cc": "IF",
+   "fields": {},
+   "notes": "Fecha de carga tomada del Levantamiento general",
+   "stages": [
+    {
+     "name": "Carga de columna",
+     "at": "2026-07-30T09:00",
+     "done": true
+    }
+   ]
+  },
+  {
+   "id": "lev-c3",
+   "typeId": "carga",
+   "label": "COL 320",
+   "cc": "MS",
+   "fields": {},
+   "notes": "Fecha de carga tomada del Levantamiento general",
+   "stages": [
+    {
+     "name": "Carga de columna",
+     "at": "2026-08-06T09:00",
+     "done": true
+    }
+   ]
+  },
+  {
+   "id": "lev-c4",
+   "typeId": "carga",
+   "label": "COL 325-326-327-328",
+   "cc": "MS",
+   "fields": {},
+   "notes": "Fecha de carga tomada del Levantamiento general",
+   "stages": [
+    {
+     "name": "Carga de columna",
+     "at": "2026-08-20T09:00",
+     "done": true
+    }
+   ]
+  },
+  {
+   "id": "lev-c5",
+   "typeId": "carga",
+   "label": "COL 329-330-331-332-333-334",
+   "cc": "RD",
+   "fields": {},
+   "notes": "Fecha de carga tomada del Levantamiento general",
+   "stages": [
+    {
+     "name": "Carga de columna",
+     "at": "2026-08-26T09:00",
+     "done": true
+    }
+   ]
+  },
+  {
+   "id": "lev-c6",
+   "typeId": "carga",
+   "label": "COL 335-336-337",
+   "cc": "IF",
+   "fields": {},
+   "notes": "Fecha de carga tomada del Levantamiento general",
+   "stages": [
+    {
+     "name": "Carga de columna",
+     "at": "2026-09-03T09:00",
+     "done": true
+    }
+   ]
+  },
+  {
+   "id": "lev-c7",
+   "typeId": "carga",
+   "label": "COL 338-339-340-341",
+   "cc": "MS-A",
+   "fields": {},
+   "notes": "Fecha de carga tomada del Levantamiento general",
+   "stages": [
+    {
+     "name": "Carga de columna",
+     "at": "2026-09-08T09:00",
+     "done": true
+    }
+   ]
+  },
+  {
+   "id": "lev-c8",
+   "typeId": "carga",
+   "label": "COL 343",
+   "cc": "MS",
+   "fields": {},
+   "notes": "Fecha de carga tomada del Levantamiento general",
+   "stages": [
+    {
+     "name": "Carga de columna",
+     "at": "2026-09-11T09:00",
+     "done": true
+    }
+   ]
+  },
+  {
+   "id": "lev-c9",
+   "typeId": "carga",
+   "label": "COL 342",
+   "cc": "MS-B",
+   "fields": {},
+   "notes": "Fecha de carga tomada del Levantamiento general",
+   "stages": [
+    {
+     "name": "Carga de columna",
+     "at": "2026-09-11T09:00",
+     "done": true
+    }
+   ]
+  },
+  {
+   "id": "lev-c10",
+   "typeId": "carga",
+   "label": "COL 351-352",
+   "cc": "IF",
+   "fields": {},
+   "notes": "Fecha de carga tomada del Levantamiento general",
+   "stages": [
+    {
+     "name": "Carga de columna",
+     "at": "2026-09-23T09:00",
+     "done": true
+    }
+   ]
+  },
+  {
+   "id": "lev-c11",
+   "typeId": "carga",
+   "label": "COL 344-345-346-347-348-349-350",
+   "cc": "RD",
+   "fields": {},
+   "notes": "Fecha de carga tomada del Levantamiento general",
+   "stages": [
+    {
+     "name": "Carga de columna",
+     "at": "2026-09-24T09:00",
+     "done": true
+    }
+   ]
+  },
+  {
+   "id": "lev-c12",
+   "typeId": "carga",
+   "label": "COL 353",
+   "cc": "IF",
+   "fields": {},
+   "notes": "Fecha de carga tomada del Levantamiento general",
+   "stages": [
+    {
+     "name": "Carga de columna",
+     "at": "2026-10-02T09:00",
+     "done": true
+    }
+   ]
+  },
+  {
+   "id": "lev-c13",
+   "typeId": "carga",
+   "label": "COL 354-355",
+   "cc": "RD",
+   "fields": {},
+   "notes": "Fecha de carga tomada del Levantamiento general",
+   "stages": [
+    {
+     "name": "Carga de columna",
+     "at": "2026-10-08T09:00",
+     "done": true
+    }
+   ]
+  },
+  {
+   "id": "lev-c14",
+   "typeId": "carga",
+   "label": "COL 356-357-358-359",
+   "cc": "IF",
+   "fields": {},
+   "notes": "Fecha de carga tomada del Levantamiento general",
+   "stages": [
+    {
+     "name": "Carga de columna",
+     "at": "2026-10-09T09:00",
+     "done": true
+    }
+   ]
+  },
+  {
+   "id": "lev-c15",
+   "typeId": "carga",
+   "label": "COL 360-361",
+   "cc": "RD",
+   "fields": {},
+   "notes": "Fecha de carga tomada del Levantamiento general",
+   "stages": [
+    {
+     "name": "Carga de columna",
+     "at": "2026-10-21T09:00",
+     "done": true
+    }
+   ]
+  },
+  {
+   "id": "lev-c16",
+   "typeId": "carga",
+   "label": "COL 362-363",
+   "cc": "RD",
+   "fields": {},
+   "notes": "Fecha de carga tomada del Levantamiento general",
+   "stages": [
+    {
+     "name": "Carga de columna",
+     "at": "2026-10-22T09:00",
+     "done": true
+    }
+   ]
+  },
+  {
+   "id": "lev-c17",
+   "typeId": "carga",
+   "label": "COL 364-365-366-367",
+   "cc": "RD",
+   "fields": {},
+   "notes": "Fecha de carga tomada del Levantamiento general",
+   "stages": [
+    {
+     "name": "Carga de columna",
+     "at": "2026-10-23T09:00",
+     "done": true
+    }
+   ]
+  }
+ ],
+ "envios": [
+  {
+   "analisis": "Cu, CuSec, Fe, Fe Soluble",
+   "cc": "",
+   "cond": "",
+   "fecha": "2026-11-30",
+   "from": "bp1bbhx",
+   "id": "r-bp1bbhx",
+   "muestra": "COL 310-312",
+   "recep": "",
+   "tipo": "Ripio"
+  },
+  {
+   "analisis": "Cu, CuSec, Fe, Fe Soluble, Mo, Ag, Au, Co, Ni",
+   "cc": "",
+   "cond": "",
+   "fecha": "2026-11-27",
+   "from": "c6xx2kr",
+   "id": "r-c6xx2kr",
+   "muestra": "COL 325-326",
+   "recep": "",
+   "tipo": "Ripio"
+  },
+  {
+   "analisis": "Cu, CuSec, Fe, Fe Soluble, Mo, Ag, Au, Co, Ni",
+   "cc": "",
+   "cond": "",
+   "fecha": "2026-12-07",
+   "from": "fld41gt",
+   "id": "r-fld41gt",
+   "muestra": "COL 327",
+   "recep": "",
+   "tipo": "Ripio"
+  },
+  {
+   "analisis": "Cu, CuSec, Fe, Fe Soluble, Mo, Ag, Au, Co, Ni",
+   "cc": "",
+   "cond": "",
+   "fecha": "2026-11-23",
+   "from": "idpdvc7",
+   "id": "r-idpdvc7",
+   "muestra": "COL 320",
+   "recep": "",
+   "tipo": "Ripio"
+  },
+  {
+   "analisis": "Cu, CuSec, Fe, Fe Soluble",
+   "cc": "",
+   "cond": "",
+   "fecha": "2026-11-30",
+   "from": "w10r05s",
+   "id": "r-w10r05s",
+   "muestra": "COL 356-357",
+   "recep": "",
+   "tipo": "Ripio"
+  },
+  {
+   "analisis": "Cu, CuSec, Fe, Fe Soluble",
+   "cc": "",
+   "cond": "",
+   "fecha": "2026-11-23",
+   "from": "xj0ek7b",
+   "id": "r-xj0ek7b",
+   "muestra": "COL 358-359",
+   "recep": "",
+   "tipo": "Ripio"
+  },
+  {
+   "id": "x-20261015-ripio-pla-11",
+   "tipo": "Ripio",
+   "fecha": "2026-10-15",
+   "cc": "MS",
+   "muestra": "Ripio PLA 11",
+   "cond": "Si",
+   "recep": "",
+   "analisis": "Cu, CuSec, Fe, Fe Soluble, Mo, Ag, Au, Co, Ni",
+   "envProc": true,
+   "envAna": true
+  },
+  {
+   "id": "x-20261021-m-21",
+   "tipo": "Mineral",
+   "fecha": "2026-10-21",
+   "cc": "RD",
+   "muestra": "M-21",
+   "cond": "Si",
+   "recep": "2026-11-02",
+   "analisis": "N/A",
+   "envProc": true
+  },
+  {
+   "id": "x-20261021-m-51",
+   "tipo": "Mineral",
+   "fecha": "2026-10-21",
+   "cc": "RD",
+   "muestra": "M-51",
+   "cond": "Si",
+   "recep": "2026-11-02",
+   "analisis": "N/A",
+   "envProc": true
+  },
+  {
+   "id": "x-20261028-m-3",
+   "tipo": "Mineral",
+   "fecha": "2026-10-28",
+   "cc": "RD",
+   "muestra": "M-3",
+   "cond": "Si",
+   "recep": "2026-11-04",
+   "analisis": "N/A",
+   "envProc": true
+  },
+  {
+   "id": "x-20261028-m-56",
+   "tipo": "Mineral",
+   "fecha": "2026-10-28",
+   "cc": "RD",
+   "muestra": "M-56",
+   "cond": "Si",
+   "recep": "2026-11-04",
+   "analisis": "N/A",
+   "envProc": true
+  },
+  {
+   "id": "x-20261103-m-21",
+   "tipo": "Mineral",
+   "fecha": "2026-11-03",
+   "cc": "RD",
+   "muestra": "M-21",
+   "cond": "Si",
+   "recep": "2026-11-09",
+   "analisis": "N/A",
+   "envProc": true
+  },
+  {
+   "id": "x-20261103-m-1",
+   "tipo": "Mineral",
+   "fecha": "2026-11-03",
+   "cc": "RD",
+   "muestra": "M-1",
+   "cond": "Si",
+   "recep": "2026-11-09",
+   "analisis": "N/A",
+   "envProc": true
+  },
+  {
+   "id": "x-20261104-m-100",
+   "tipo": "Mineral",
+   "fecha": "2026-11-04",
+   "cc": "IF",
+   "muestra": "M-100",
+   "cond": "Si",
+   "recep": "2026-11-16",
+   "analisis": "",
+   "envProc": true,
+   "envAna": true
+  },
+  {
+   "id": "x-20261028-sulfatacion-17",
+   "tipo": "Ripio",
+   "fecha": "2026-10-28",
+   "cc": "RD",
+   "muestra": "SULFATACION  17",
+   "cond": "Si",
+   "recep": "",
+   "analisis": "",
+   "envProc": true
+  },
+  {
+   "id": "x-20261028-sulfatacion-18",
+   "tipo": "Ripio",
+   "fecha": "2026-10-28",
+   "cc": "RD",
+   "muestra": "SULFATACION  18",
+   "cond": "Si",
+   "recep": "",
+   "analisis": "",
+   "envProc": true
+  },
+  {
+   "id": "x-20261028-sulfatacion-19",
+   "tipo": "Ripio",
+   "fecha": "2026-10-28",
+   "cc": "RD",
+   "muestra": "SULFATACION  19",
+   "cond": "Si",
+   "recep": "",
+   "analisis": "",
+   "envProc": true
+  },
+  {
+   "id": "x-20261028-sulfatacion-20",
+   "tipo": "Ripio",
+   "fecha": "2026-10-28",
+   "cc": "RD",
+   "muestra": "SULFATACION  20",
+   "cond": "Si",
+   "recep": "",
+   "analisis": "",
+   "envProc": true
+  },
+  {
+   "id": "x-20261028-sulfatacion-21",
+   "tipo": "Ripio",
+   "fecha": "2026-10-28",
+   "cc": "RD",
+   "muestra": "SULFATACION  21",
+   "cond": "Si",
+   "recep": "",
+   "analisis": "",
+   "envProc": true
+  },
+  {
+   "id": "x-20261028-sulfatacion-22",
+   "tipo": "Ripio",
+   "fecha": "2026-10-28",
+   "cc": "RD",
+   "muestra": "SULFATACION  22",
+   "cond": "Si",
+   "recep": "",
+   "analisis": "",
+   "envProc": true
+  },
+  {
+   "id": "x-20261028-sulfatacion-23",
+   "tipo": "Ripio",
+   "fecha": "2026-10-28",
+   "cc": "RD",
+   "muestra": "SULFATACION  23",
+   "cond": "Si",
+   "recep": "",
+   "analisis": "",
+   "envProc": true
+  },
+  {
+   "id": "x-20261028-sulfatacion-24",
+   "tipo": "Ripio",
+   "fecha": "2026-10-28",
+   "cc": "RD",
+   "muestra": "SULFATACION  24",
+   "cond": "Si",
+   "recep": "",
+   "analisis": "",
+   "envProc": true
+  },
+  {
+   "id": "x-20261028-sulfatacion-25",
+   "tipo": "Ripio",
+   "fecha": "2026-10-28",
+   "cc": "RD",
+   "muestra": "SULFATACION  25",
+   "cond": "Si",
+   "recep": "",
+   "analisis": "",
+   "envProc": true
+  },
+  {
+   "id": "x-20261028-sulfatacion-26",
+   "tipo": "Ripio",
+   "fecha": "2026-10-28",
+   "cc": "RD",
+   "muestra": "SULFATACION  26",
+   "cond": "Si",
+   "recep": "",
+   "analisis": "",
+   "envProc": true
+  },
+  {
+   "id": "x-20261028-sulfatacion-27",
+   "tipo": "Ripio",
+   "fecha": "2026-10-28",
+   "cc": "RD",
+   "muestra": "SULFATACION  27",
+   "cond": "Si",
+   "recep": "",
+   "analisis": "",
+   "envProc": true
+  },
+  {
+   "id": "x-20261028-sulfatacion-28",
+   "tipo": "Ripio",
+   "fecha": "2026-10-28",
+   "cc": "RD",
+   "muestra": "SULFATACION  28",
+   "cond": "Si",
+   "recep": "",
+   "analisis": "",
+   "envProc": true
+  },
+  {
+   "id": "x-20261110-ripio-g11m1",
+   "tipo": "Ripio",
+   "fecha": "2026-11-10",
+   "cc": "SG",
+   "muestra": "RIPIO G11M1",
+   "cond": "Si",
+   "recep": "",
+   "analisis": "",
+   "envProc": true
+  },
+  {
+   "id": "x-20261110-ripio-g11m2",
+   "tipo": "Ripio",
+   "fecha": "2026-11-10",
+   "cc": "SG",
+   "muestra": "RIPIO G11M2",
+   "cond": "Si",
+   "recep": "",
+   "analisis": "",
+   "envProc": true
+  },
+  {
+   "id": "x-20261110-ripio-g11m3",
+   "tipo": "Ripio",
+   "fecha": "2026-11-10",
+   "cc": "SG",
+   "muestra": "RIPIO G11M3",
+   "cond": "Si",
+   "recep": "",
+   "analisis": "",
+   "envProc": true
+  },
+  {
+   "id": "x-20261110-ripio-g13",
+   "tipo": "Ripio",
+   "fecha": "2026-11-10",
+   "cc": "SG",
+   "muestra": "RIPIO G13",
+   "cond": "Si",
+   "recep": "",
+   "analisis": "",
+   "envProc": true
+  },
+  {
+   "id": "x-20261110-ripio-g14",
+   "tipo": "Ripio",
+   "fecha": "2026-11-10",
+   "cc": "SG",
+   "muestra": "RIPIO G14",
+   "cond": "Si",
+   "recep": "",
+   "analisis": "",
+   "envProc": true
+  },
+  {
+   "id": "x-20261111-ripio-313",
+   "tipo": "Ripio",
+   "fecha": "2026-11-11",
+   "cc": "MS",
+   "muestra": "RIPIO 313",
+   "cond": "Si",
+   "recep": "",
+   "analisis": ""
+  },
+  {
+   "id": "x-20261111-ripio-314",
+   "tipo": "Ripio",
+   "fecha": "2026-11-11",
+   "cc": "MS",
+   "muestra": "RIPIO 314",
+   "cond": "Si",
+   "recep": "",
+   "analisis": ""
+  },
+  {
+   "id": "x-20261111-ripio-329",
+   "tipo": "Ripio",
+   "fecha": "2026-11-11",
+   "cc": "RD",
+   "muestra": "RIPIO 329",
+   "cond": "Si",
+   "recep": "",
+   "analisis": ""
+  },
+  {
+   "id": "x-20261111-ripio-330",
+   "tipo": "Ripio",
+   "fecha": "2026-11-11",
+   "cc": "RD",
+   "muestra": "RIPIO 330",
+   "cond": "Si",
+   "recep": "",
+   "analisis": ""
+  },
+  {
+   "id": "x-20261111-ripio-335",
+   "tipo": "Ripio",
+   "fecha": "2026-11-11",
+   "cc": "IF",
+   "muestra": "RIPIO 335",
+   "cond": "No",
+   "recep": "",
+   "analisis": ""
+  },
+  {
+   "id": "x-20261111-ripio-336",
+   "tipo": "Ripio",
+   "fecha": "2026-11-11",
+   "cc": "IF",
+   "muestra": "RIPIO 336",
+   "cond": "No",
+   "recep": "",
+   "analisis": ""
+  },
+  {
+   "id": "x-20261111-ripio-353",
+   "tipo": "Ripio",
+   "fecha": "2026-11-11",
+   "cc": "IF",
+   "muestra": "RIPIO 353",
+   "cond": "No",
+   "recep": "",
+   "analisis": ""
+  },
+  {
+   "id": "r-tw3u31c",
+   "from": "tw3u31c",
+   "tipo": "Ripio",
+   "fecha": "2026-11-23",
+   "cc": "",
+   "muestra": "COL 351-352",
+   "cond": "",
+   "recep": "",
+   "analisis": "Cu, CuSec, Fe, Fe Soluble"
+  }
+ ]
+};
+/* Actividades de la versión anterior (13-11): si alguien no las modificó, se reemplazan por la versión actualizada */
+const SEED_OLD = {"1llg3ze": {"fields": {}, "id": "1llg3ze", "label": "SULFATACION 38 A LA 40", "notes": "Mineral 21", "stages": [{"at": "2026-11-09T09:00", "done": true, "name": "Preparación solución de sulfatación"}, {"at": "2026-11-10T09:00", "done": true, "name": "Inicio sulfatación"}, {"at": "2026-11-16T09:00", "done": false, "name": "Lavado"}, {"at": "2026-11-19T09:00", "done": false, "name": "Retiro del horno"}], "typeId": "sulf"}, "4f3t02r": {"fields": {}, "id": "4f3t02r", "label": "Sulfataciones 29a la 36", "notes": "M-03-M-056", "stages": [{"at": "2026-11-04T09:00", "done": true, "name": "Preparación solución de sulfatación"}, {"at": "2026-11-05T09:00", "done": true, "name": "Inicio sulfatación"}, {"at": "2026-11-11T09:00", "done": true, "name": "Lavado"}, {"at": "2026-11-16T09:00", "done": false, "name": "Retiro del horno"}], "typeId": "sulf"}, "bp1bbhx": {"fields": {"analisis": "Cu, CuSec, Fe, Fe Soluble", "area": "IF", "envios": "Si", "mineral": "M-20C", "ripio": "Sí"}, "id": "bp1bbhx", "label": "COL 310-312", "notes": "", "stages": [{"at": "2026-11-18T09:00", "done": false, "name": "Inicio lavado de columna (5 días)"}, {"at": "2026-11-23T09:00", "done": false, "name": "Inicio drenaje de columna (3 días)"}, {"at": "2026-11-26T09:00", "done": false, "name": "Descarga de columna y muestreo + ingreso a secado"}, {"at": "2026-11-30T09:00", "done": false, "name": "Salida del horno y pesaje de ripio seco"}], "typeId": "desc"}, "c6xx2kr": {"fields": {"analisis": "Cu, CuSec, Fe, Fe Soluble, Mo, Ag, Au, Co, Ni", "area": "MS", "envios": "Si", "mineral": "M-97"}, "id": "c6xx2kr", "label": "COL 325-326", "notes": "", "stages": [{"at": "2026-11-13T09:00", "done": true, "name": "Inicio lavado de columna (5 días)"}, {"at": "2026-11-18T09:00", "done": false, "name": "Inicio drenaje de columna (3 días)"}, {"at": "2026-11-23T09:00", "done": false, "name": "Descarga de columna y muestreo + ingreso a secado"}, {"at": "2026-11-27T09:00", "done": false, "name": "Salida del horno y pesaje de ripio seco"}], "typeId": "desc"}, "fld41gt": {"fields": {"analisis": "Cu, CuSec, Fe, Fe Soluble, Mo, Ag, Au, Co, Ni", "area": "MS", "envios": "Si", "mineral": "M-97", "ripio": "Sí"}, "id": "fld41gt", "label": "COL 327", "notes": "", "stages": [{"at": "2026-11-24T09:00", "done": false, "name": "Inicio lavado de columna (5 días)"}, {"at": "2026-11-29T09:00", "done": false, "name": "Inicio drenaje de columna (3 días)"}, {"at": "2026-12-02T09:00", "done": false, "name": "Descarga de columna y muestreo + ingreso a secado"}, {"at": "2026-12-07T09:00", "done": false, "name": "Salida del horno y pesaje de ripio seco"}], "typeId": "desc"}, "idpdvc7": {"fields": {"analisis": "Cu, CuSec, Fe, Fe Soluble, Mo, Ag, Au, Co, Ni", "area": "MS", "envios": "Si", "mineral": "M-58", "ripio": "Sí"}, "id": "idpdvc7", "label": "COL 320", "notes": "", "stages": [{"at": "2026-11-10T09:00", "done": true, "name": "Inicio lavado de columna (5 días)"}, {"at": "2026-11-15T09:00", "done": true, "name": "Inicio drenaje de columna (3 días)"}, {"at": "2026-11-18T09:00", "done": false, "name": "Descarga de columna y muestreo + ingreso a secado"}, {"at": "2026-11-23T09:00", "done": false, "name": "Salida del horno y pesaje de ripio seco"}], "typeId": "desc"}, "q3rs1v3": {"fields": {}, "id": "q3rs1v3", "label": "Mineral 20 C", "notes": "", "stages": [{"at": "2026-11-17T09:00", "done": false, "name": "Determinación densidad aparente"}], "typeId": "dap"}, "rl3gudy": {"fields": {}, "id": "rl3gudy", "label": "MINERAL 20 C", "notes": "", "stages": [{"at": "2026-11-17T09:00", "done": false, "name": "Inicio densidad real"}, {"at": "2026-11-18T09:00", "done": false, "name": "Término densidad real"}], "typeId": "dreal"}, "w10r05s": {"fields": {"analisis": "Cu, CuSec, Fe, Fe Soluble", "area": "IF", "envios": "Si", "mineral": "M-49"}, "id": "w10r05s", "label": "COL 356-357", "notes": "", "stages": [{"at": "2026-11-16T09:00", "done": false, "name": "Inicio lavado de columna (5 días)"}, {"at": "2026-11-21T09:00", "done": false, "name": "Inicio drenaje de columna (3 días)"}, {"at": "2026-11-24T09:00", "done": false, "name": "Descarga de columna y muestreo + ingreso a secado"}, {"at": "2026-11-30T09:00", "done": false, "name": "Salida del horno y pesaje de ripio seco"}], "typeId": "desc"}, "xj0ek7b": {"fields": {"analisis": "Cu, CuSec, Fe, Fe Soluble", "area": "IF", "envios": "Si", "mineral": "M-66", "ripio": "Sí"}, "id": "xj0ek7b", "label": "COL 358-359", "notes": "", "stages": [{"at": "2026-11-09T09:00", "done": true, "name": "Inicio lavado de columna (5 días)"}, {"at": "2026-11-14T09:00", "done": true, "name": "Inicio drenaje de columna (3 días)"}, {"at": "2026-11-17T09:00", "done": false, "name": "Descarga de columna y muestreo + ingreso a secado"}, {"at": "2026-11-23T09:00", "done": false, "name": "Salida del horno y pesaje de ripio seco"}], "typeId": "desc"}, "xzdcfy6": {"fields": {}, "id": "xzdcfy6", "label": "CH 5-6", "notes": "M-100", "stages": [{"at": "2026-11-16T09:00", "done": false, "name": "Carga e inicio de riego"}, {"at": "2026-11-18T19:00", "done": false, "name": "Inicio prueba"}, {"at": "2026-11-19T19:00", "done": false, "name": "Drenaje"}, {"at": "2026-11-20T19:00", "done": false, "name": "Descarga"}], "typeId": "chsa"}};
+try { if (localStorage.getItem(KEY+'-seed')!==SEED.v){
+  state.items = state.items.filter(i=>!i.sample);   // quita los ejemplos de la versión anterior
+  if (!state.items.length && SEED.cfg && Array.isArray(SEED.cfg.types)) state.types = SEED.cfg.types;
+  const sj = o => JSON.stringify(o, (k,v)=> v && typeof v==='object' && !Array.isArray(v) ? Object.keys(v).sort().reduce((a,x)=>(a[x]=v[x],a),{}) : v);
+  const prev = localStorage.getItem(KEY); if (prev) localStorage.setItem(KEY+'-antes-'+SEED.v, prev);   // copia de seguridad
+  SEED.items.forEach(it=>{ const i = state.items.findIndex(x=>x.id===it.id);
+    if (i<0) state.items.push(it);
+    else if (SEED_OLD[it.id] && sj(state.items[i])===sj(SEED_OLD[it.id])) state.items[i] = it;   // sin cambios locales: se actualiza
+  });
+  state.envios ||= []; SEED.envios.forEach(e=>{ if (!state.envios.some(x=>x.id===e.id)) state.envios.push(e); });
+  localStorage.setItem(KEY, JSON.stringify(state)); localStorage.setItem(KEY+'-seed', SEED.v);
+} } catch(e){}
+/* «Descarga del horno» pasa a llamarse «Salida del horno» (tipos y actividades ya guardadas) */
+try { const rn = s => { if (s && s.name==='Descarga del horno') s.name = 'Salida del horno'; };
+  (state.types||[]).forEach(t => (t.stages||[]).forEach(rn)); (state.items||[]).forEach(i => (i.stages||[]).forEach(rn)); } catch(e){}
+/* Envíos de la planilla «Envio a procesamiento.xlsx»: se agregan una sola vez y no se duplican */
+const SEED_XL = [{"id":"x-20261015-ripio-pla-11","tipo":"Ripio","fecha":"2026-10-15","cc":"MS","muestra":"Ripio PLA 11","cond":"Si","recep":"","analisis":"No"},{"id":"x-20261021-m-21","tipo":"Mineral","fecha":"2026-10-21","cc":"RD","muestra":"M-21","cond":"Si","recep":"2026-11-02","analisis":"N/A"},{"id":"x-20261021-m-51","tipo":"Mineral","fecha":"2026-10-21","cc":"RD","muestra":"M-51","cond":"Si","recep":"2026-11-02","analisis":"N/A"},{"id":"x-20261028-m-3","tipo":"Mineral","fecha":"2026-10-28","cc":"RD","muestra":"M-3","cond":"Si","recep":"2026-11-04","analisis":"N/A"},{"id":"x-20261028-m-56","tipo":"Mineral","fecha":"2026-10-28","cc":"RD","muestra":"M-56","cond":"Si","recep":"2026-11-04","analisis":"N/A"},{"id":"x-20261103-m-21","tipo":"Mineral","fecha":"2026-11-03","cc":"RD","muestra":"M-21","cond":"Si","recep":"2026-11-09","analisis":"N/A"},{"id":"x-20261103-m-1","tipo":"Mineral","fecha":"2026-11-03","cc":"RD","muestra":"M-1","cond":"Si","recep":"2026-11-09","analisis":"N/A"},{"id":"x-20261104-m-100","tipo":"Mineral","fecha":"2026-11-04","cc":"IF","muestra":"M-100","cond":"Si","recep":"","analisis":""},{"id":"x-20261028-sulfatacion-17","tipo":"Ripio","fecha":"2026-10-28","cc":"RD","muestra":"SULFATACION  17","cond":"Si","recep":"","analisis":""},{"id":"x-20261028-sulfatacion-18","tipo":"Ripio","fecha":"2026-10-28","cc":"RD","muestra":"SULFATACION  18","cond":"Si","recep":"","analisis":""},{"id":"x-20261028-sulfatacion-19","tipo":"Ripio","fecha":"2026-10-28","cc":"RD","muestra":"SULFATACION  19","cond":"Si","recep":"","analisis":""},{"id":"x-20261028-sulfatacion-20","tipo":"Ripio","fecha":"2026-10-28","cc":"RD","muestra":"SULFATACION  20","cond":"Si","recep":"","analisis":""},{"id":"x-20261028-sulfatacion-21","tipo":"Ripio","fecha":"2026-10-28","cc":"RD","muestra":"SULFATACION  21","cond":"Si","recep":"","analisis":""},{"id":"x-20261028-sulfatacion-22","tipo":"Ripio","fecha":"2026-10-28","cc":"RD","muestra":"SULFATACION  22","cond":"Si","recep":"","analisis":""},{"id":"x-20261028-sulfatacion-23","tipo":"Ripio","fecha":"2026-10-28","cc":"RD","muestra":"SULFATACION  23","cond":"Si","recep":"","analisis":""},{"id":"x-20261028-sulfatacion-24","tipo":"Ripio","fecha":"2026-10-28","cc":"RD","muestra":"SULFATACION  24","cond":"Si","recep":"","analisis":""},{"id":"x-20261028-sulfatacion-25","tipo":"Ripio","fecha":"2026-10-28","cc":"RD","muestra":"SULFATACION  25","cond":"Si","recep":"","analisis":""},{"id":"x-20261028-sulfatacion-26","tipo":"Ripio","fecha":"2026-10-28","cc":"RD","muestra":"SULFATACION  26","cond":"Si","recep":"","analisis":""},{"id":"x-20261028-sulfatacion-27","tipo":"Ripio","fecha":"2026-10-28","cc":"RD","muestra":"SULFATACION  27","cond":"Si","recep":"","analisis":""},{"id":"x-20261028-sulfatacion-28","tipo":"Ripio","fecha":"2026-10-28","cc":"RD","muestra":"SULFATACION  28","cond":"Si","recep":"","analisis":""},{"id":"x-20261110-ripio-g11m1","tipo":"Ripio","fecha":"2026-11-10","cc":"SG","muestra":"RIPIO G11M1","cond":"Si","recep":"","analisis":""},{"id":"x-20261110-ripio-g11m2","tipo":"Ripio","fecha":"2026-11-10","cc":"SG","muestra":"RIPIO G11M2","cond":"Si","recep":"","analisis":""},{"id":"x-20261110-ripio-g11m3","tipo":"Ripio","fecha":"2026-11-10","cc":"SG","muestra":"RIPIO G11M3","cond":"Si","recep":"","analisis":""},{"id":"x-20261110-ripio-g13","tipo":"Ripio","fecha":"2026-11-10","cc":"SG","muestra":"RIPIO G13","cond":"Si","recep":"","analisis":""},{"id":"x-20261110-ripio-g14","tipo":"Ripio","fecha":"2026-11-10","cc":"SG","muestra":"RIPIO G14","cond":"Si","recep":"","analisis":""},{"id":"x-20261111-ripio-313","tipo":"Ripio","fecha":"2026-11-11","cc":"MS","muestra":"RIPIO 313","cond":"Si","recep":"","analisis":""},{"id":"x-20261111-ripio-314","tipo":"Ripio","fecha":"2026-11-11","cc":"MS","muestra":"RIPIO 314","cond":"Si","recep":"","analisis":""},{"id":"x-20261111-ripio-329","tipo":"Ripio","fecha":"2026-11-11","cc":"RD","muestra":"RIPIO 329","cond":"Si","recep":"","analisis":""},{"id":"x-20261111-ripio-330","tipo":"Ripio","fecha":"2026-11-11","cc":"RD","muestra":"RIPIO 330","cond":"Si","recep":"","analisis":""},{"id":"x-20261111-ripio-335","tipo":"Ripio","fecha":"2026-11-11","cc":"IF","muestra":"RIPIO 335","cond":"No","recep":"","analisis":""},{"id":"x-20261111-ripio-336","tipo":"Ripio","fecha":"2026-11-11","cc":"IF","muestra":"RIPIO 336","cond":"No","recep":"","analisis":""},{"id":"x-20261111-ripio-353","tipo":"Ripio","fecha":"2026-11-11","cc":"IF","muestra":"RIPIO 353","cond":"No","recep":"","analisis":""}];
+try { if (localStorage.getItem(KEY+'-seed-xl')!=='2'){
+  state.envios ||= [];
+  const k = e => (e.fecha||'')+'|'+String(e.muestra||'').trim().toLowerCase();
+  SEED_XL.forEach(e=>{ if (!state.envios.some(x=>x.id===e.id || (!x.del && k(x)===k(e)))) state.envios.push(e); });
+  localStorage.setItem(KEY, JSON.stringify(state)); localStorage.setItem(KEY+'-seed-xl','2');
+} } catch(e){}
+function migrate(){
+  ['desc','carga'].forEach(id=>{
+    const d = DEFAULT_TYPES.find(t=>t.id===id), cur = state.types.find(t=>t.id===id);
+    if (!cur) state.types.unshift(JSON.parse(JSON.stringify(d)));
+    else {
+      if (id==='carga' && !cur.stages.some(s=>/soluci/i.test(s.name))) cur.stages = JSON.parse(JSON.stringify(d.stages));
+      if (id==='desc' && !cur.stages.some(s=>/ingreso a secado/i.test(s.name))) cur.stages = JSON.parse(JSON.stringify(d.stages));
+      if (id==='desc' && cur.name==='Descarga de columna') cur.name = d.name;
+      cur.fields ||= d.fields;
+      if (id==='desc'){ const k = cur.fields.findIndex(f=>f.key==='analisis'), df = d.fields.find(f=>f.key==='analisis');
+        if (k>=0 && (cur.fields[k].type!=='select' || JSON.stringify(cur.fields[k].options)!==JSON.stringify(df.options))) cur.fields[k] = JSON.parse(JSON.stringify(df)); }
+      d.fields.forEach((f,k)=>{ if (!cur.fields.some(x=>x.key===f.key)) cur.fields.splice(k,0,JSON.parse(JSON.stringify(f))); }); cur.labelHint ||= d.labelHint; if (d.extraStage) cur.extraStage ||= d.extraStage; }
+  });
+}
+migrate();
+/* Corre al siguiente día hábil las etapas de ingreso/retiro de horno o secado que ya estaban en fin de semana */
+function normalizeWeekends(){
+  let n = 0;
+  state.items.forEach(it=>{ let acc = 0;
+    it.stages.forEach(s=>{ if (s.done) return; const d = parse(s.at);
+      if (acc){ d.setMinutes(d.getMinutes()+acc); s.at = fmt(d); }
+      if (ruleOf(s)==='shift' && isWk(d)){ const nd = nextWeekday(d); acc += Math.round((nd-d)/6e4); s.at = fmt(nd); n++; }
+    });
+  });
+  return n;
+}
+const fixedOnLoad = normalizeWeekends();
+const hash = str => { let h=5381; for (let i=0;i<str.length;i++) h=((h<<5)+h+str.charCodeAt(i))|0; return h; };
+let bk = {last:null, hash:null};
+try { bk = JSON.parse(localStorage.getItem(KEY+'-bk')||'null') || bk; } catch(e){}
+/* Guardado inmediato de cada cambio. Si el navegador se queda sin espacio, se liberan primero las copias
+   automáticas antiguas para que lo último ingresado nunca se pierda al refrescar. */
+const trySet = (k, v) => { try { localStorage.setItem(k, v); return true; } catch(e){ return false; } };
+function freeSpace(){
+  Object.keys(localStorage).filter(k=>k.startsWith(KEY+'-antes-')).forEach(k=>localStorage.removeItem(k));
+  try { const a = JSON.parse(localStorage.getItem(KEY+'-auto')||'[]'); if (a.length > 5) localStorage.setItem(KEY+'-auto', JSON.stringify(a.slice(-5))); } catch(e){ localStorage.removeItem(KEY+'-auto'); }
+}
+let saveWarned = false;
+const save = () => {
+  const j = JSON.stringify(state);
+  if (!trySet(KEY, j)){ freeSpace(); if (!trySet(KEY, j)){ localStorage.removeItem(KEY+'-auto'); if (!trySet(KEY, j) && !saveWarned){ saveWarned = true; setTimeout(()=>toast('⚠ El navegador no tiene espacio para guardar. Descarga un respaldo ahora.'), 50); } } }
+  updBk(j); scheduleFlush();
+};
+window.addEventListener('beforeunload', ()=>save());
+document.addEventListener('visibilitychange', ()=>{ if (document.visibilityState==='hidden') save(); });
+function updBk(j){
+  const el = document.getElementById('bkStatus'); if (!el) return;
+  const dirty = hash(j||JSON.stringify(state)) !== bk.hash && state.items.length>0;
+  const last = bk.last ? new Date(bk.last) : null;
+  el.textContent = last ? `Último respaldo: ${pad(last.getDate())}-${pad(last.getMonth()+1)}-${last.getFullYear()} ${hm(last)}` : 'Sin respaldo todavía';
+  el.className = 'bk' + (dirty ? ' dirty' : '');
+  el.title = dirty ? 'Hay cambios que no están en el último respaldo' : '';
+}
+function markBackup(){ bk = {last:new Date().toISOString(), hash:hash(JSON.stringify(state))}; try { localStorage.setItem(KEY+'-bk', JSON.stringify(bk)); } catch(e){} updBk(); }
+
+/* ---------- Respaldo automático cada 30 segundos ----------
+   1) Copias internas en este navegador: si hubo cambios, guarda una copia (se conservan las últimas 30).
+   2) Opcional (Chrome/Edge): un archivo .xlsx elegido por la usuaria que se sobrescribe con cada cambio. */
+const AUTO_KEY = KEY+'-auto', AUTO_MAX = 20, AUTO_MS = 30000;
+const autoList = () => { try { return JSON.parse(localStorage.getItem(AUTO_KEY)||'[]'); } catch(e){ return []; } };
+function autoSnap(force){
+  const j = JSON.stringify(state), h = hash(j), list = autoList();
+  if (!force && list.length && list[list.length-1].h===h) return false;
+  list.push({t:new Date().toISOString(), h, n:state.items.length, j});
+  while (list.length > AUTO_MAX) list.shift();
+  while (list.length){ try { localStorage.setItem(AUTO_KEY, JSON.stringify(list)); break; } catch(e){ if (list.length<=1){ localStorage.removeItem(AUTO_KEY); break; } list.shift(); } }
+  return true;
+}
+let autoFile = null, autoFileHash = null, autoFileMsg = '';
+async function autoFileWrite(force){
+  if (!autoFile || !window.XLSX) return;
+  const h = hash(JSON.stringify(state)); if (!force && h===autoFileHash) return;
+  try {
+    const buf = XLSX.write(buildWorkbook(XLSX), {bookType:'xlsx', type:'array'});
+    const w = await autoFile.createWritable(); await w.write(new Blob([buf])); await w.close();
+    autoFileHash = h; autoFileMsg = `Guardado en «${autoFile.name}» a las ${hm(new Date())}`; markBackup();
+  } catch(e){ autoFileMsg = `No se pudo escribir «${autoFile.name}» (¿está abierto en Excel?). Se reintenta en 30 s.`; }
+  const el = document.getElementById('bAutoFileMsg'); if (el) el.textContent = autoFileMsg;
+}
+setInterval(()=>{ autoSnap(); autoFileWrite(); }, AUTO_MS);
+setTimeout(()=>autoSnap(), 3000);
+window.addEventListener('beforeunload', ()=>autoSnap());
+
+/* ---------- Guardado local y descargas ---------- */
+function scheduleFlush(){}
+async function offerFile(name, data){ downloadBlob(data instanceof Blob ? data : new Blob([data]), name); return true; }
+
+const ui = { y:new Date().getFullYear(), m:new Date().getMonth(), view: matchMedia('(max-width:640px)').matches ? 'agenda' : 'month', hidden:new Set(), q:'' };
+try { const h = JSON.parse(localStorage.getItem(KEY+'-ui')||'null'); if (h && Array.isArray(h.hidden)) ui.hidden = new Set(h.hidden); } catch(e){}
+const saveUi = () => { try { localStorage.setItem(KEY+'-ui', JSON.stringify({hidden:[...ui.hidden]})); } catch(e){} };
+
+const typeOf = id => state.types.find(t=>t.id===id) || {name:'(tipo eliminado)', color:'#898781', stages:[]};
+const itemOf = id => state.items.find(i=>i.id===id);
+const visible = it => !ui.hidden.has(it.typeId) && (!ui.q || (it.label+' '+typeOf(it.typeId).name).toLowerCase().includes(ui.q));
+
+function toast(t){ const el=$('toast'); el.textContent=t; el.hidden=false; clearTimeout(toast._t); toast._t=setTimeout(()=>el.hidden=true,2600); }
+
+/* ---------- Render ---------- */
+function render(){
+  syncEnvios();
+  save();
+  fillOpFilter();
+  $('monLbl').textContent = `${MONL[ui.m].slice(0,3).toUpperCase()} ${ui.y}`;
+  $('vMonth').setAttribute('aria-pressed', ui.view==='month');
+  $('vAgenda').setAttribute('aria-pressed', ui.view==='agenda');
+  $('vDone').setAttribute('aria-pressed', ui.view==='done');
+  $('vEnv').setAttribute('aria-pressed', ui.view==='envios');
+  $('vEp').setAttribute('aria-pressed', ui.view==='ep');
+  $('vDone').innerHTML = `✓ Completadas <span class="cnt">${state.items.filter(isDone).length}</span>`;
+  $('vEnv').innerHTML = `📦 Envíos <span class="cnt">${state.envios.filter(e=>!e.del && !envDone(e)).length}</span>`;
+  $('sampleBanner').hidden = !state.items.some(i=>i.sample);
+  if (ui.view==='month') renderMonth(); else if (ui.view==='agenda') renderAgenda(); else if (ui.view==='envios') renderEnvios(); else if (ui.view==='ep') renderEP(); else renderDone();
+  renderSide();
+}
+
+/* Lavado y descarga de columna: se muestra «Lavado» al inicio y «Descarga» desde el día 8 (descarga, horno y pesaje) */
+const phaseName = (t, s) => t.id==='desc' ? (/descarga|horno|secad|pesaje/i.test(s.name) ? 'Descarga de columna' : 'Lavado de columna') : t.name;
+/* Operadores: cada actividad tiene un responsable y cada etapa puede tener otro */
+/* Lista de operadores editable (botón «Operadores»); se guarda con el calendario y viaja en el respaldo */
+const OPS_DEF = ['SR','DV','JM','FG'];
+const opsList = () => Array.isArray(state.ops) ? state.ops : OPS_DEF;
+function fillOpFilter(){
+  const f = document.getElementById('fOp'); if (!f) return;
+  const cur = ui.op || '', list = opsList();
+  f.innerHTML = `<option value="">Todos los operadores</option>${list.concat(cur && cur!=='-' && !list.includes(cur) ? [cur] : []).map(o=>`<option value="${esc(o)}">${esc(o)}</option>`).join('')}<option value="-">Sin asignar</option>`;
+  f.value = cur;
+}
+function opsModal(){
+  const draw = ()=>{
+    $('oList').innerHTML = opsList().length ? opsList().map((o,i)=>`<div class="oprow"><span class="opb">${esc(o)}</span><span class="hint">${state.items.filter(it=>opList(it.op).includes(o) || it.stages.some(s=>opList(s.op).includes(o))).length} actividades asignadas</span><button class="x" type="button" data-orm="${i}" aria-label="Quitar ${esc(o)}">×</button></div>`).join('')
+      : '<p class="hint">No hay operadores en la lista.</p>';
+  };
+  openModal(`${head('Operadores','Agrega o quita personas de la lista. Quitar a alguien no borra sus asignaciones anteriores.')}
+    <div id="oList" class="oplist"></div>
+    <div class="row2"><div class="fld"><label class="lbl" for="oNew">Nuevo operador (iniciales o nombre)</label><input id="oNew" type="text" maxlength="30" placeholder="Ej: MR"></div>
+      <div class="bar" style="align-self:end"><button class="pri" type="button" id="oAdd">Agregar</button></div></div>
+    <div class="mf"><span></span><button class="pri" type="button" data-close>Listo</button></div>`);
+  draw();
+  const add = ()=>{ const v = $('oNew').value.trim().toUpperCase().replace(/\s+/g,' ').replace(/[,+\/]/g,''); if (!v) return;
+    const list = opsList().slice(); if (list.includes(v)){ toast(`${v} ya está en la lista`); return; }
+    list.push(v); state.ops = list; save(); fillOpFilter(); draw(); $('oNew').value=''; $('oNew').focus(); toast(`Operador ${v} agregado`); };
+  $('oAdd').onclick = add;
+  $('oNew').addEventListener('keydown', e=>{ if (e.key==='Enter'){ e.preventDefault(); add(); } });
+  $('oList').onclick = e=>{ const b = e.target.closest('[data-orm]'); if (!b) return;
+    if (!b.classList.contains('arm')){ b.classList.add('arm'); b.textContent='¿Quitar?'; return; }
+    const list = opsList().slice(), [o] = list.splice(+b.dataset.orm,1); state.ops = list; save(); fillOpFilter(); draw(); toast(`Operador ${o} quitado de la lista`); };
+}
+const opOf = (it, s) => (s && s.op) || it.op || '';
+/* Una actividad o etapa puede tener varios operadores: se guardan como «SR, DV» */
+const opList = v => String(v||'').split(/\s*[,+\/]\s*/).filter(Boolean);
+const opMatch = op => !ui.op || (ui.op==='-' ? !op : opList(op).includes(ui.op));
+const opOpts = (v, blank) => `<option value="">${esc(blank)}</option>` + opsList().concat(v && !opsList().includes(v) ? [v] : []).map(o=>`<option value="${esc(o)}" ${o===v?'selected':''}>${esc(o)}</option>`).join('');
+const opSumHtml = (cur, blank) => cur.length ? esc(cur.join(', ')) : `<span class="ph">${esc(blank)}</span>`;
+function opPick(id, v, blank, attr=''){
+  const cur = opList(v), ops = opsList(), all = ops.concat(cur.filter(o=>!ops.includes(o)));
+  return `<details class="opk" id="${id}" data-blank="${esc(blank)}" ${attr}><summary aria-label="Operadores">${opSumHtml(cur, blank)}</summary><div class="opm">${
+    all.map(o=>`<label><input type="checkbox" value="${esc(o)}" ${cur.includes(o)?'checked':''}> ${esc(o)}</label>`).join('')
+  }<p class="hint">Puedes marcar más de uno</p></div></details>`;
+}
+/* Lee los operadores marcados y actualiza el texto del selector */
+function opRead(el){
+  const v = [...el.querySelectorAll('input:checked')].map(x=>x.value);
+  el.querySelector('summary').innerHTML = opSumHtml(v, el.dataset.blank||'');
+  return v.join(', ');
+}
+document.addEventListener('click', e=>{ document.querySelectorAll('details.opk[open]').forEach(d=>{ if (!d.contains(e.target)) d.open = false; }); });
+/* Etapas atrasadas: si una etapa de un día anterior no se marcó como hecha, se repite en el día hábil actual
+   (hoy, o el lunes si es fin de semana) como «Atrasada», hasta que se marque. La fecha original no se cambia. */
+const lateDay = () => { const t = new Date(); t.setHours(0,0,0,0); return nextWeekday(t); };
+function stageEvents(){
+  const ev = [], t0 = new Date(); t0.setHours(0,0,0,0); const roll = nextWeekday(t0);
+  state.items.filter(visible).forEach(it=>{
+    const t = typeOf(it.typeId);
+    it.stages.forEach((s,i)=>{ const op = opOf(it,s); if (!opMatch(op)) return;
+      const d = parse(s.at), tn = phaseName(t,s);
+      // atrasada: sale de su día original y aparece solo en el día hábil actual
+      if (!s.done && !it.sample && d < t0) ev.push({it, t, s, i, d:new Date(roll.getFullYear(), roll.getMonth(), roll.getDate(), d.getHours(), d.getMinutes()), op, tn, late:d});
+      else ev.push({it, t, s, i, d, op, tn});
+    });
+  });
+  // por día; dentro del día, primero las atrasadas
+  return ev.sort((a,b)=>{ const ka = dkey(a.d), kb = dkey(b.d); return ka<kb ? -1 : ka>kb ? 1 : ((b.late?1:0)-(a.late?1:0)) || (a.d-b.d); });
+}
+/* Marcar una etapa como hecha. Si estaba atrasada, queda registrada en el día en que realmente se hizo (hoy)
+   y se guarda la fecha que tenía programada; al desmarcarla vuelve a su fecha programada. */
+function setDone(s, val){
+  const t0 = new Date(); t0.setHours(0,0,0,0);
+  if (val && !s.done && parse(s.at) < t0){ s.planned = s.at; s.at = dkey(new Date()) + (s.at.slice(10) || 'T09:00'); }
+  else if (!val && s.done && s.planned){ s.at = s.planned; delete s.planned; }
+  s.done = val;
+}
+const lateTag = e => e.late ? `<span class="latet">⏰ Atrasada · era del ${e.late.getDate()} ${MON[e.late.getMonth()]}</span>` : '';
+
+function renderMonth(){
+  const first = new Date(ui.y, ui.m, 1);
+  const start = new Date(first); start.setDate(1 - ((first.getDay()+6)%7));
+  const last = new Date(ui.y, ui.m+1, 0);
+  const weeks = Math.ceil((((first.getDay()+6)%7) + last.getDate())/7);
+  const byDay = {};
+  stageEvents().forEach(e=>{ (byDay[dkey(e.d)] ||= []).push(e); });
+  const todayK = dkey(new Date());
+  let html = `<div class="cal"><div class="dow">${['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'].map(x=>`<div>${x}</div>`).join('')}</div><div class="weeks">`;
+  const d = new Date(start);
+  for (let w=0; w<weeks; w++){
+    html += '<div class="wk">';
+    for (let k=0; k<7; k++){
+      const key = dkey(d), evs = byDay[key]||[];
+      const cls = ['day', d.getMonth()!==ui.m?'other':'', isWk(d)?'wknd':'', key===todayK?'today':''].join(' ');
+      const MAX = Infinity;   // mostrar todas las etapas del día
+      html += `<div class="${cls}" data-day="${key}">
+        <button class="dn" type="button" data-openday="${key}" aria-label="Ver ${d.getDate()} ${MONL[d.getMonth()]}">${d.getDate()}</button>
+        ${evs.slice(0,MAX).map(chip).join('')}
+        ${evs.length>MAX?`<button class="more" type="button" data-openday="${key}">+${evs.length-MAX} más</button>`:''}
+      </div>`;
+      d.setDate(d.getDate()+1);
+    }
+    html += '</div>';
+  }
+  html += '</div></div><p class="hint" style="margin-top:8px">Marca el cuadrito de cada etapa cuando esté hecha: queda en verde y el recuadro se aclara. Los fines de semana aparecen sombreados.</p>';
+  $('main').innerHTML = html;
+}
+/* Texto corto para el calendario (el nombre completo queda en el tooltip y dentro de la actividad) */
+const nrm = s => String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+function shortLabel(e){
+  const lb = String(e.it.label||'').trim(); if (!lb || lb===e.t.name) return '';
+  const w = lb.split(/\s+/), tw = nrm(e.tn).split(/\s+/)[0];
+  if (w.length>1 && tw.length>=5 && nrm(w[0]).slice(0,6)===tw.slice(0,6)) return w.slice(1).join(' ');   // «Sulfataciones 29a la 36» → «29a la 36»
+  return lb;
+}
+const shortStage = n => String(n||'').replace(/\s*\([^)]*\)/g,'').replace(/\s+de(l)? columnas?\b/gi,'').replace(/\+\s*ingreso a /gi,'+ ').replace(/\s{2,}/g,' ').trim();
+const lblHTML = e => { const l = shortLabel(e); return l ? ` <span class="lb">· ${esc(l)}</span>` : ''; };
+function chip(e){
+  const out = !e.s.done && outOfRange(e.s);
+  return `<div class="chip${e.s.done?' done':''}${out?' out':''}${e.late?' late':''}" draggable="true" data-item="${e.it.id}" data-stage="${e.i}" style="--c:${e.t.color}"
+    title="${esc(e.tn)} · ${esc(e.it.label)}${e.op?' · Operador: '+esc(e.op):''}&#10;${esc(e.s.name)} (${e.i+1}/${e.it.stages.length})&#10;${short(e.d)}${e.s.done?'&#10;✓ Hecha':''}${out?'&#10;⚠ Fuera de rango: cae fin de semana':''}">
+    <button class="ck" type="button" role="checkbox" aria-checked="${e.s.done?'true':'false'}" data-ck="${e.it.id}|${e.i}" aria-label="${e.s.done?'Desmarcar':'Marcar como hecha'}: ${esc(e.s.name)}">✓</button>
+    <span class="cb" role="button" tabindex="0"><span class="n"><b>${out?'⚠ ':''}${e.op?`<span class="opb">${esc(e.op)}</span> `:''}${esc(e.tn)}${lblHTML(e)}</b><i>${esc(shortStage(e.s.name))}</i>${lateTag(e)}</span></span></div>`;
+}
+
+function renderAgenda(){
+  const evs = stageEvents().filter(e=>e.d.getFullYear()===ui.y && e.d.getMonth()===ui.m);
+  if (!evs.length){ $('main').innerHTML = `<div class="panel empty">No hay etapas programadas en ${MONL[ui.m]}. Usa «+ Programar actividad» para agregar una.</div>`; return; }
+  const groups = {}; evs.forEach(e=>(groups[dkey(e.d)] ||= []).push(e));
+  const todayK = dkey(new Date());
+  $('main').innerHTML = '<div class="agenda">' + Object.entries(groups).map(([k,list])=>{
+    const d = parse(k), past = k < todayK;
+    /* Días que ya pasaron: cerrados, solo con el día y el mes; se abren al hacer clic */
+    const rows = list.map(e=>`<div class="agrow${e.s.done?' done':''}${e.late?' late':''}" style="--c:${e.t.color}" data-open="${e.it.id}">
+        <input type="checkbox" id="ag-${e.it.id}-${e.i}${e.late?'-l':''}" data-done="${e.it.id}|${e.i}" ${e.s.done?'checked':''} aria-label="Marcar etapa como hecha">
+        <div class="tx"><b>${esc(e.tn)}${lblHTML(e)}</b> ${!e.s.done&&outOfRange(e.s)&&!e.late?tagOut(e.d):''}<div>${esc(shortStage(e.s.name))}${e.it.sample?' · Ejemplo':''} ${lateTag(e)}</div></div>
+        ${opPick(`ag-op-${e.it.id}-${e.i}${e.late?'-l':''}`, e.s.op||'', e.it.op ? e.it.op+' (resp.)' : 'Asignar operador', `data-agop="${e.it.id}|${e.i}"`).replace('class="opk"', 'class="opk agop"')}
+        <span class="stp">${e.i+1}/${e.it.stages.length}</span></div>`).join('');
+    const nDone = list.filter(e=>e.s.done).length;
+    if (past) return `<details class="agday agpast"${ui.agOpen && ui.agOpen.has(k) ? ' open' : ''} data-agk="${k}"><summary><span class="agd">${d.getDate()} ${MON[d.getMonth()]}</span><span class="hint">${list.length} etapa${list.length>1?'s':''} · ${nDone===list.length ? '✓ todas hechas' : `${nDone} hechas`}</span></summary>
+      <div class="agbody"><div class="bar" style="justify-content:flex-end;margin-bottom:6px"><button type="button" data-print="${k}" style="font-size:12px;padding:2px 9px">🖨 Imprimir día</button></div>${rows}</div></details>`;
+    return `<section class="agday"><h3>${['domingo','lunes','martes','miércoles','jueves','viernes','sábado'][d.getDay()]} ${d.getDate()} de ${MONL[d.getMonth()]} ${k===todayK?'<span class="tagw" style="color:var(--accent)">Hoy</span>':''} ${isWk(d)?'<span class="tagw">Fin de semana</span>':''}<button type="button" data-print="${k}" style="margin-left:auto;font-size:12px;padding:2px 9px">🖨 Imprimir día</button></h3>
+      ${rows}
+    </section>`;
+  }).join('') + '</div>';
+  /* recordar qué días pasados están abiertos mientras se usa la página */
+  document.querySelectorAll('details.agpast').forEach(x=>x.addEventListener('toggle', ()=>{ ui.agOpen ||= new Set(); x.open ? ui.agOpen.add(x.dataset.agk) : ui.agOpen.delete(x.dataset.agk); }));
+}
+
+function renderSide(){
+  const inMonth = it => it.stages.some(s=>{ const d=parse(s.at); return d.getFullYear()===ui.y && d.getMonth()===ui.m; });
+  $('typesLbl').textContent = `${state.items.filter(inMonth).length} en el mes`;
+  $('typeList').innerHTML = state.types.map(t=>{
+    const n = state.items.filter(i=>i.typeId===t.id && inMonth(i)).length;
+    return `<div class="trow${ui.hidden.has(t.id)?' off':''}" style="--c:${t.color}" data-toggle="${t.id}" role="button" tabindex="0" aria-pressed="${!ui.hidden.has(t.id)}">
+      <span class="sw"></span><span class="nm">${esc(t.name)}</span><span class="ct">${n||''}</span></div>`;
+  }).join('');
+  const now = new Date();
+  const nx = stageEvents().filter(e=>e.d>=now && !e.s.done).slice(0,6);
+  $('nextList').innerHTML = nx.length ? nx.map(e=>`<div class="nxr" style="--c:${e.t.color}" data-open="${e.it.id}"><span class="d"></span>
+    <div><div class="w">${short(e.d)}</div>${outOfRange(e.s)?tagOut(e.d):''}<div><b>${esc(e.s.name)}</b> · ${esc(e.it.label)}</div></div></div>`).join('')
+    : '<p class="hint">No hay etapas pendientes.</p>';
+}
+
+/* ---------- Mover etapas ---------- */
+function shiftStage(it, idx, minutes, follow){
+  let acc = 0; const moved = [];
+  it.stages.forEach((s,i)=>{
+    if (i===idx || (follow && i>idx)){
+      const d=parse(s.at); d.setMinutes(d.getMinutes()+minutes+acc);
+      if (ruleOf(s)==='shift' && isWk(d)){ const n=nextWeekday(d); if (follow) acc += Math.round((n-d)/6e4); moved.push(s.name); s.at=fmt(n); }
+      else s.at=fmt(d);
+    }
+  });
+  if (moved.length) setTimeout(()=>toast(`${moved.join(', ')}: cae fin de semana, se corrió al siguiente día hábil`), 2700);
+  return moved;
+}
+const tagOut = d => `<span class="tagx">⚠ Fuera de rango: cae ${DAYN[d.getDay()]}</span>`;
+let drag = null;
+document.addEventListener('dragstart', e=>{
+  const c = e.target.closest?.('.chip'); if (!c) return;
+  drag = {item:c.dataset.item, stage:+c.dataset.stage}; c.classList.add('dragging');
+  try { e.dataTransfer.setData('text/plain', drag.item); e.dataTransfer.effectAllowed='move'; } catch(_){}
+});
+document.addEventListener('dragend', ()=>{ drag=null; document.querySelectorAll('.dragging,.over').forEach(x=>x.classList.remove('dragging','over')); });
+document.addEventListener('dragover', e=>{ const d=e.target.closest?.('.day'); if (d && drag){ e.preventDefault(); document.querySelectorAll('.over').forEach(x=>x!==d&&x.classList.remove('over')); d.classList.add('over'); }});
+document.addEventListener('drop', e=>{
+  const d = e.target.closest?.('.day'); if (!d || !drag) return; e.preventDefault();
+  const it = itemOf(drag.item); if (!it) return;
+  const s = it.stages[drag.stage], cur = parse(s.at), tgt = parse(d.dataset.day);
+  tgt.setHours(cur.getHours(), cur.getMinutes());
+  const days = Math.round((tgt - cur)/864e5); if (!days) return;
+  const follow = $('follow').checked;
+  shiftStage(it, drag.stage, Math.round((tgt-cur)/6e4), follow);
+  if (it.sample) delete it.sample;
+  render();
+  toast(`${s.name} movida al ${short(tgt)}${follow && drag.stage<it.stages.length-1 ? ' (y las siguientes)' : ''}`);
+});
+
+/* ---------- Modales ---------- */
+function openModal(html, wide){ const m=$('modal'); m.className='modal'+(wide?' wide':''); m.innerHTML=html; $('ov').hidden=false; const f=m.querySelector('[autofocus]')||m.querySelector('input,select,button'); f&&f.focus(); }
+function closeModal(){ $('ov').hidden=true; $('modal').innerHTML=''; render(); }
+$('ov').addEventListener('mousedown', e=>{ if (e.target===$('ov')) closeModal(); });
+document.addEventListener('keydown', e=>{ if (e.key==='Escape' && !$('ov').hidden) closeModal(); });
+const head = (t,sub) => `<div class="mh"><div><h2>${t}</h2>${sub?`<p class="hint" style="margin-top:2px">${sub}</p>`:''}</div><button class="x" type="button" data-close aria-label="Cerrar">×</button></div>`;
+
+function fieldsHtml(t, vals, pre){
+  if (!t.fields || !t.fields.length) return '';
+  return `<div class="row2">${t.fields.map(f=>{
+    const id = pre+f.key, v = (vals||{})[f.key] ?? '';
+    if (f.type==='check') return `<div class="fld" style="grid-column:1/-1"><label class="chk" style="color:var(--fg)"><input type="checkbox" id="${id}" data-f="${f.key}" ${v?'checked':''}> <b>${esc(f.label)}</b></label></div>`;
+    const inp = f.type==='select'
+      ? `<select id="${id}" data-f="${f.key}">${(!v || f.options.includes(v) ? f.options : f.options.concat(v)).map(o=>`<option value="${esc(o)}" ${o===v?'selected':''}>${esc(o||'—')}</option>`).join('')}</select>`
+      : `<input id="${id}" data-f="${f.key}" type="${f.type==='date'?'date':'text'}" value="${esc(v)}">`;
+    return `<div class="fld"><label class="lbl" for="${id}">${esc(f.label)}</label>${inp}</div>`;
+  }).join('')}</div>`;
+}
+function selStages(t, st, sel){ return sel.size ? runChain(t, st, Math.min(...sel), sel) : []; }
+function newModal(preDay){
+  const t0 = state.types[0];
+  const def = preDay ? preDay+'T09:00' : fmt(new Date(new Date().setHours(9,0,0,0)));
+  openModal(`${head('Programar actividad','Elige el tipo, marca las etapas que quieres agregar y la fecha de la primera etapa marcada. Las demás se calculan solas.')}
+    <div class="row2">
+      <div class="fld"><label class="lbl" for="nType">Tipo de actividad</label><select id="nType">${state.types.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('')}</select></div>
+      <div class="fld"><label class="lbl" for="nLabel">Muestra / columna / OT</label><input id="nLabel" type="text" placeholder="Ej: COL 281 OFF 2" autofocus></div>
+    </div>
+    <div class="row2">
+      <div class="fld"><label class="lbl" for="nStart" id="nStartLbl">Fecha de la primera etapa</label><input id="nStart" type="date" value="${def.slice(0,10)}"></div>
+      <div class="fld"><label class="lbl" for="nNotes">Notas</label><input id="nNotes" type="text" placeholder="Opcional"></div>
+    </div>
+    <div class="row2"><div class="fld"><span class="lbl">Operadores responsables</span>${opPick('nOp', ui.op && ui.op!=='-' ? ui.op : '', 'Sin asignar')}</div></div>
+    <div id="nFields"></div>
+    <div class="fld"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span class="lbl">Etapas a agregar</span>
+      <span class="bar"><button type="button" id="nAll">Todas</button><button type="button" id="nNone">Ninguna</button></span></div>
+      <div class="pv" id="nPrev"></div></div>
+    <div class="mf"><span class="hint">Después puedes ajustar cada fecha por separado.</span><div class="bar"><button type="button" data-close>Cancelar</button><button class="pri" type="button" id="nSave">Programar</button></div></div>`);
+  if (!t0){ $('nPrev').innerHTML='<p class="msg">Primero crea un tipo de actividad.</p>'; return; }
+  let sel = new Set();
+  const upd = ()=>{
+    const t = typeOf($('nType').value), st = $('nStart').value ? $('nStart').value+'T09:00' : '';
+    if (upd.tid !== t.id){ upd.tid = t.id; sel = new Set(t.stages.map((_,i)=>i)); $('nFields').innerHTML = fieldsHtml(t, {}, 'nf-'); $('nLabel').placeholder = t.labelHint || 'Ej: COL 281 OFF 2'; }
+    const first = Math.min(...sel);
+    $('nStartLbl').textContent = sel.size ? `Fecha de: ${t.stages[first].name}` : 'Fecha';
+    $('nSave').disabled = !sel.size || !st;
+    if (!st){ $('nPrev').innerHTML='<p class="msg">Indica la fecha.</p>'; return; }
+    const calc = {}; selStages(t, st, sel).forEach(s=>calc[s.i]=s);
+    $('nPrev').innerHTML = t.stages.map((s,i)=>{ const c=calc[i], d=c?parse(c.at):null; return `<label class="pvr${c?'':' off'}">
+      <input type="checkbox" id="np${i}" data-np="${i}" ${c?'checked':''}>
+      <span class="w">${d?short(d):'—'}</span>
+      <span>${esc(s.name)}${i?` <span class="hint">(${gapTxt(s)})</span>`:''}${c&&c.moved?` <span class="tagw">Caía ${c.moved}: corrido a ${DAYN[d.getDay()]}</span>`:''}${c&&outOfRange(c)?' '+tagOut(d):''}</span></label>`; }).join('')
+      + (Object.values(calc).some(outOfRange) ? '<p class="msg">⚠ Hay etapas que caen fin de semana y quedan fuera de rango de lo establecido. Cambia la fecha de inicio para que caigan en día hábil.</p>' : '')
+      + (sel.size ? '' : '<p class="msg">Marca al menos una etapa.</p>');
+  };
+  ['nType','nStart'].forEach(id=>$(id).addEventListener('input',upd));
+  $('nPrev').addEventListener('change', e=>{ const x=e.target; if (x.dataset.np===undefined) return; x.checked ? sel.add(+x.dataset.np) : sel.delete(+x.dataset.np); upd(); });
+  $('nAll').onclick = ()=>{ sel = new Set(typeOf($('nType').value).stages.map((_,i)=>i)); upd(); };
+  $('nNone').onclick = ()=>{ sel = new Set(); upd(); };
+  upd();
+  $('nSave').onclick = ()=>{
+    const st = $('nStart').value ? $('nStart').value+'T09:00' : ''; if (!st || !sel.size) return;
+    const t = typeOf($('nType').value);
+    const fields = {}; $('nFields').querySelectorAll('[data-f]').forEach(x=>{ const v = x.type==='checkbox' ? (x.checked?'Sí':'') : x.value; if (v) fields[x.dataset.f]=v; });
+    const stages = selStages(t, st, sel).map(({name,at,done})=>({name,at,done}));
+    const it = {id:uid(), typeId:t.id, label:$('nLabel').value.trim()||t.name, notes:$('nNotes').value.trim(), fields, stages};
+    const nop = opRead($('nOp')); if (nop) it.op = nop;
+    state.items.push(it);
+    const d = parse(st); ui.y=d.getFullYear(); ui.m=d.getMonth();
+    closeModal(); toast(`${t.name} programada: ${stages.length===1?stages[0].name:stages.length+' etapas'}`);
+  };
+}
+
+function itemModal(id){
+  const it = itemOf(id); if (!it) return;
+  const t = typeOf(it.typeId);
+  const ds = it.stages.map(s=>parse(s.at));
+  const durH = ds.length>1 ? Math.round((Math.max(...ds)-Math.min(...ds))/36e5) : 0;
+  openModal(`${head(`<span style="display:inline-block;width:12px;height:12px;border-radius:3px;background:${t.color};margin-right:8px"></span>${esc(t.name)}`, `${it.stages.length} etapas · duración total ${durH>=48?`${Math.round(durH/24*10)/10} días`:`${durH} h`}${it.sample?' · Ejemplo':''}`)}
+    <div class="row2">
+      <div class="fld"><label class="lbl" for="iLabel">Muestra / columna / OT</label><input id="iLabel" type="text" value="${esc(it.label)}"></div>
+      <div class="fld"><label class="lbl" for="iNotes">Notas</label><input id="iNotes" type="text" value="${esc(it.notes)}"></div>
+    </div>
+    <div class="row2"><div class="fld"><span class="lbl">Operadores responsables</span>${opPick('iOp', it.op||'', 'Sin asignar')}</div>
+      <p class="hint" style="align-self:end">Puedes marcar más de un operador. Cada etapa puede tener otros; si no, quedan los responsables.</p></div>
+    <div id="iFields">${fieldsHtml(t, it.fields, 'if-')}</div>
+    <div class="fld"><div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><span class="lbl">Etapas</span>
+      <span class="bar"><button type="button" id="iAddSt">+ Etapa</button><span class="hint">Mover todo</span><button type="button" data-all="-1">−1 día</button><button type="button" data-all="1">+1 día</button></span></div>
+      <div class="stages" id="iStages"></div>
+      <label class="chk" style="margin-top:4px"><input type="checkbox" id="iAllDone" ${isDone(it)?'checked':''}> <b>Actividad completada</b> (marca todas las etapas y la pasa a «Completadas»)</label>
+      <label class="chk"><input type="checkbox" id="iFollow" ${$('follow').checked?'checked':''}> Al cambiar una fecha, mover también las etapas siguientes</label>
+    </div>
+    <div class="fld" id="iDelBox" hidden><label class="lbl" for="iDelWhy">Motivo de la eliminación (queda en el respaldo)</label><input id="iDelWhy" type="text" placeholder="Ej: muestra cancelada, ingresada por error…"></div>
+    <div class="mf"><button class="danger" type="button" id="iDel">Eliminar actividad</button><button class="pri" type="button" data-close>Listo</button></div>`);
+  const drawSt = ()=>{
+    $('iStages').innerHTML = it.stages.map((s,i)=>{ const d=parse(s.at); return `<div class="st">
+      <input type="checkbox" id="sd${i}" data-sdone="${i}" ${s.done?'checked':''} aria-label="Etapa hecha">
+      <div class="nm"><input type="text" id="sn${i}" data-sname="${i}" value="${esc(s.name)}" aria-label="Nombre de la etapa">${outOfRange(s)?' '+tagOut(d):''}</div>
+      ${opPick('so'+i, s.op||'', it.op ? it.op+' (resp.)' : 'Sin asignar', `data-sop="${i}"`).replace('class="opk"', 'class="opk sop"')}
+      <input class="dt" type="date" id="sa${i}" data-sat="${i}" value="${s.at.slice(0,10)}" aria-label="Fecha de la etapa">
+      ${it.stages.length>1?`<button class="x" type="button" data-srm="${i}" aria-label="Quitar etapa">×</button>`:'<span></span>'}</div>`; }).join('');
+  };
+  drawSt();
+  const touch = ()=>{ if (it.sample) delete it.sample; save(); };
+  $('iLabel').oninput = e=>{ it.label=e.target.value; touch(); };
+  $('iNotes').oninput = e=>{ it.notes=e.target.value; touch(); };
+  $('iOp').addEventListener('change', ()=>{ const v = opRead($('iOp')); if (v) it.op = v; else delete it.op; touch(); drawSt(); toast(it.op ? `Responsables: ${it.op}` : 'Sin operador asignado'); });
+  $('iFields').addEventListener('input', e=>{ const x=e.target; if (x.dataset.f){ (it.fields ||= {})[x.dataset.f] = x.type==='checkbox' ? (x.checked?'Sí':'') : x.value; touch(); if (x.type==='checkbox') toast(x.checked?'Ripio marcado como enviado a procesamiento':'Ripio marcado como no enviado'); } });
+  $('iAllDone').onchange = e=>{ it.stages.forEach(s=>s.done=e.target.checked); syncDone(it); touch(); drawSt(); if (e.target.checked) toast('Actividad completada'); };
+  $('iAddSt').onclick = ()=>{
+    const last = parse(it.stages[it.stages.length-1].at); last.setDate(last.getDate()+1);
+    const n = it.stages.filter(s=>/riego/i.test(s.name)).length + 1;
+    it.stages.push({name: t.extraStage ? t.extraStage.replace('{n}', n) : 'Nueva etapa', at:fmt(last), done:false});
+    const ns = it.stages[it.stages.length-1]; if (ruleOf(ns)==='shift' && isWk(last)) ns.at = fmt(nextWeekday(last));
+    touch(); drawSt();
+  };
+  $('iStages').addEventListener('click', e=>{ const b=e.target.closest('[data-srm]'); if (!b) return; it.stages.splice(+b.dataset.srm,1); touch(); drawSt(); });
+  $('iStages').addEventListener('change', e=>{
+    const x = e.target;
+    if (x.dataset.sdone!==undefined){ it.stages[+x.dataset.sdone].done = x.checked; syncDone(it); touch(); $('iAllDone').checked = isDone(it); }
+    if (x.dataset.sname!==undefined){ it.stages[+x.dataset.sname].name = x.value; touch(); }
+    const sp = x.closest('[data-sop]');
+    if (sp){ const s = it.stages[+sp.dataset.sop], v = opRead(sp); if (v) s.op = v; else delete s.op; touch(); return; }
+    if (x.dataset.sat!==undefined && x.value){ const i=+x.dataset.sat; const nv = x.value.slice(0,10) + (it.stages[i].at.slice(10) || 'T09:00'); const mins=Math.round((parse(nv)-parse(it.stages[i].at))/6e4); shiftStage(it,i,mins,$('iFollow').checked); touch(); drawSt(); }
+  });
+  $('modal').querySelectorAll('[data-all]').forEach(b=>b.onclick=()=>{ shiftStage(it,0,(+b.dataset.all)*1440,true); touch(); drawSt(); });
+  $('iDel').onclick = e=>{
+    const b = e.currentTarget;
+    if (!b.classList.contains('arm')){ b.classList.add('arm'); b.textContent='Confirmar: eliminar'; $('iDelBox').hidden=false; $('iDelWhy').focus(); return; }
+    logDeleted(it, $('iDelWhy').value.trim());
+    state.items = state.items.filter(x=>x.id!==it.id); closeModal(); toast('Actividad eliminada del calendario; queda registrada en el respaldo');
+  };
+}
+
+function dayModal(key){
+  const d = parse(key);
+  const evs = stageEvents().filter(e=>dkey(e.d)===key);
+  openModal(`${head(`${['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'][d.getDay()]} ${d.getDate()} de ${MONL[d.getMonth()]}`, evs.length?`${evs.length} etapas`:'Sin etapas este día')}
+    <div class="agenda">${evs.map(e=>`<div class="agrow${e.s.done?' done':''}${e.late?' late':''}" style="--c:${e.t.color}" data-open="${e.it.id}">
+      <span></span><div class="tx"><b>${e.op?`<span class="opb">${esc(e.op)}</span> `:''}${esc(e.tn)}${lblHTML(e)}</b><div>${esc(shortStage(e.s.name))} ${lateTag(e)}</div></div><span></span><span class="stp">${e.i+1}/${e.it.stages.length}</span></div>`).join('')}</div>
+    <div class="mf"><button type="button" data-print="${key}">🖨 Imprimir día</button><div class="bar"><button type="button" data-close>Cerrar</button><button class="pri" type="button" id="dNew">+ Programar este día</button></div></div>`);
+  $('dNew').onclick = ()=>newModal(key);
+}
+
+/* ---------- Imprimible por día ---------- */
+function dayDoc(key){
+  const d = parse(key), DN = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+  const evs = [];
+  const t0 = new Date(); t0.setHours(0,0,0,0); const isRoll = key===dkey(lateDay());
+  state.items.forEach(it=>{ const t = typeOf(it.typeId); it.stages.forEach((s,i)=>{ const x = parse(s.at), op = opOf(it,s); if (!opMatch(op)) return;
+    const late = !s.done && !it.sample && x < t0;
+    if (late){ if (isRoll) evs.push({it,t,s,i,d:x,op,tn:phaseName(t,s),late:x}); }
+    else if (dkey(x)===key) evs.push({it,t,s,i,d:x,op,tn:phaseName(t,s)}); }); });
+  evs.sort((a,b)=>(b.late?1:0)-(a.late?1:0) || a.d-b.d);
+  const env = (state.envios||[]).filter(e=>!e.del && (e.fecha||e.horno)===key);
+  const rows = evs.map(e=>`<tr><td class="c"><b>${esc(e.op)}</b></td><td><span class="sw" style="background:${e.t.color}"></span>${esc(e.tn)}</td><td><b>${esc(e.it.label)}</b></td>
+    <td>${e.late?`<b>⏰ ATRASADA (era del ${fmtD(e.late)})</b><br>`:''}${esc(e.s.name)} <span class="m">(${e.i+1}/${e.it.stages.length})</span></td><td class="c">${e.s.done?'☑':'☐'}</td>
+    <td>${fieldTxt(e.it).map(esc).join('<br>')}${e.it.notes?`${fieldTxt(e.it).length?'<br>':''}Notas: ${esc(e.it.notes)}`:''}</td></tr>`).join('');
+  const erows = env.map(e=>`<tr><td>${esc(e.cc||'')}</td><td><b>${esc(e.muestra||'')}</b></td><td>${esc(e.tipo||'Ripio')}</td><td class="c">${esc(e.cond||'')}</td><td>${esc(e.analisis||'')}</td><td class="c">${e.envProc?'☑':'☐'}</td><td class="c">${e.envAna?'☑':'☐'}</td></tr>`).join('');
+  return `<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Actividades ${fmtD(d)}</title><style>
+    @page{size:A4 landscape;margin:12mm}
+    body{font:12px Arial,Helvetica,sans-serif;color:#111;margin:0}
+    h1{font-size:18px;margin:0 0 2px} h2{font-size:14px;margin:18px 0 6px}
+    .sub{color:#555;margin:0 0 10px}
+    table{border-collapse:collapse;width:100%} th,td{border:1px solid #999;padding:5px 6px;vertical-align:top;text-align:left}
+    th{background:#1f4e78;color:#fff;font-size:11px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    tr{page-break-inside:avoid} .c{text-align:center;white-space:nowrap} .m{color:#666}
+    .sw{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    .firma{margin-top:28px;display:flex;gap:60px} .firma div{border-top:1px solid #333;padding-top:4px;min-width:220px}
+  </style></head><body>
+    <h1>Calendario Operacional · ${DN[d.getDay()]} ${fmtD(d)}${ui.op?` · Operador: ${ui.op==='-'?'sin asignar':esc(ui.op)}`:''}</h1>
+    <p class="sub">${evs.length} etapa${evs.length===1?'':'s'} programada${evs.length===1?'':'s'}${env.length?` · ${env.length} envío${env.length===1?'':'s'} a procesamiento`:''} · impreso el ${fmtD(new Date())} ${hm(new Date())}</p>
+    ${evs.length ? `<table><thead><tr><th style="width:60px">Operador</th><th style="width:18%">Actividad</th><th style="width:12%">Muestra / columna</th><th>Etapa</th><th style="width:45px">Hecha</th><th style="width:28%">Datos</th></tr></thead><tbody>${rows}</tbody></table>` : '<p>No hay etapas programadas este día.</p>'}
+    ${env.length ? `<h2>Envío a procesamiento</h2><table><thead><tr><th style="width:50px">CC</th><th>ID muestra</th><th style="width:70px">Tipo</th><th style="width:85px">Condiciones</th><th>Análisis</th><th style="width:85px">Enviado a procesamiento</th><th style="width:70px">Enviado a análisis</th></tr></thead><tbody>${erows}</tbody></table>` : ''}
+    <div class="firma"><div>Responsable</div><div>Revisado por</div></div>
+  </body></html>`;
+}
+async function printDay(key){
+  const html = dayDoc(key);
+  if (typeof sync!=='undefined' && sync.db){   // en el calendario compartido no se puede abrir la impresión: se descarga para imprimir
+    if (await offerFile(`Actividades_${key}.html`, html)) toast('Abre el archivo descargado y pulsa Ctrl+P para imprimir');
+    return;
+  }
+  const f = document.createElement('iframe'); f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0';
+  document.body.appendChild(f); const doc = f.contentDocument; doc.open(); doc.write(html); doc.close();
+  setTimeout(()=>{ try { f.contentWindow.focus(); f.contentWindow.print(); } catch(e){ toast('No se pudo abrir la impresión'); } setTimeout(()=>f.remove(), 60000); }, 300);
+}
+
+function typesModal(){
+  openModal(`${head('Tipos de actividad','Define las etapas de cada tipo y cuánto tiempo pasa desde la etapa anterior. Los cambios aplican a lo que programes de ahora en adelante.')}
+    <div id="tList" style="display:flex;flex-direction:column;gap:10px"></div>
+    <div class="mf"><div class="bar"><button type="button" id="tAdd">+ Nuevo tipo</button><button type="button" id="tReset">Restaurar tipos originales</button></div><button class="pri" type="button" data-close>Listo</button></div>`, true);
+  const draw = ()=>{
+    $('tList').innerHTML = state.types.map((t,ti)=>`<div class="tblock" style="--c:${t.color}">
+      <div class="thead"><input type="color" id="tc${ti}" value="${t.color}" data-tc="${ti}" aria-label="Color"><input type="text" id="tn${ti}" value="${esc(t.name)}" data-tn="${ti}" aria-label="Nombre del tipo"><button class="x" type="button" data-tdel="${ti}" aria-label="Eliminar tipo">×</button></div>
+      <div class="msg" id="tm${ti}" hidden></div>
+      ${t.stages.map((s,si)=>`<div class="tst">
+        <input type="text" id="ts${ti}-${si}" value="${esc(s.name)}" data-ts="${ti}|${si}|name" aria-label="Etapa">
+        ${si===0?'<span class="first">Fecha de inicio</span>':`<input type="number" id="tsa${ti}-${si}" min="0" step="1" value="${s.after}" data-ts="${ti}|${si}|after" aria-label="Tiempo desde la etapa anterior">
+        <select id="tsu${ti}-${si}" data-ts="${ti}|${si}|unit" aria-label="Unidad"><option value="h" ${s.unit==='h'?'selected':''}>horas</option><option value="d" ${s.unit==='d'?'selected':''}>días</option></select>`}
+        <select id="tsw${ti}-${si}" data-ts="${ti}|${si}|wk" aria-label="Si cae fin de semana"><option value="warn" ${ruleOf(s)==='warn'?'selected':''} ${SHIFT_RE.test(s.name)?'disabled':''}>Fin de semana: avisar</option><option value="shift" ${ruleOf(s)==='shift'?'selected':''}>Fin de semana: correr a día hábil</option></select>
+        <button class="x" type="button" data-sdel="${ti}|${si}" aria-label="Quitar etapa" ${t.stages.length<2?'disabled':''}>×</button></div>`).join('')}
+      <div><button type="button" data-sadd="${ti}">+ Etapa</button></div></div>`).join('');
+  };
+  draw();
+  const L = $('tList');
+  L.addEventListener('input', e=>{
+    const x=e.target;
+    if (x.dataset.tc!==undefined){ state.types[+x.dataset.tc].color=x.value; x.closest('.tblock').style.setProperty('--c',x.value); }
+    if (x.dataset.tn!==undefined) state.types[+x.dataset.tn].name=x.value;
+    if (x.dataset.ts){ const [ti,si,k]=x.dataset.ts.split('|'); state.types[+ti].stages[+si][k] = k==='after' ? Math.max(0,+x.value||0) : x.value; }
+    save();
+  });
+  L.addEventListener('click', e=>{
+    const b=e.target.closest('button'); if(!b) return;
+    if (b.dataset.sadd!==undefined){ state.types[+b.dataset.sadd].stages.push({name:'Nueva etapa',after:24,unit:'h'}); draw(); }
+    if (b.dataset.sdel){ const [ti,si]=b.dataset.sdel.split('|').map(Number); state.types[ti].stages.splice(si,1); draw(); }
+    if (b.dataset.tdel!==undefined){
+      const ti=+b.dataset.tdel, t=state.types[ti], n=state.items.filter(i=>i.typeId===t.id).length;
+      if (n){ const m=$('tm'+ti); m.hidden=false; m.textContent=`Tiene ${n} actividad${n>1?'es':''} programada${n>1?'s':''}. Elimínalas antes de borrar este tipo.`; return; }
+      state.types.splice(ti,1); draw();
+    }
+    save();
+  });
+  $('tAdd').onclick = ()=>{ state.types.push({id:uid(), name:'Nueva actividad', color:PALETTE[state.types.length%PALETTE.length], stages:[{name:'Inicio',after:0,unit:'h'},{name:'Término',after:24,unit:'h'}]}); draw(); save(); const n=$('tn'+(state.types.length-1)); n.focus(); n.select(); };
+  $('tReset').onclick = e=>{
+    const b=e.currentTarget;
+    if (!b.classList.contains('arm')){ b.classList.add('arm','danger'); b.textContent='Confirmar: restaurar'; return; }
+    const used = new Set(state.items.map(i=>i.typeId));
+    const custom = state.types.filter(t=>used.has(t.id) && !DEFAULT_TYPES.some(d=>d.id===t.id));
+    state.types = JSON.parse(JSON.stringify(DEFAULT_TYPES)).concat(custom);
+    b.classList.remove('arm','danger'); b.textContent='Restaurar tipos originales'; draw(); save(); toast('Tipos originales restaurados');
+  };
+}
+
+/* ---------- Trazabilidad de eliminadas ---------- */
+function logDeleted(it, why){
+  if (it.sample) return;
+  (state.deleted ||= []).push({...JSON.parse(JSON.stringify(it)), did:uid(), typeName:typeOf(it.typeId).name, deletedAt:new Date().toISOString(), reason:why||''});
+}
+/* ---------- Completadas ---------- */
+const isDone = it => it.stages.length>0 && it.stages.every(s=>s.done);
+function syncDone(it){ if (isDone(it)) it.completedAt ||= new Date().toISOString(); else delete it.completedAt; }
+function fieldTxt(it){ const t=typeOf(it.typeId); return (t.fields||[]).filter(f=>it.fields && it.fields[f.key]).map(f=>`${f.label}: ${f.type==='date'?fmtD(parse(it.fields[f.key])):it.fields[f.key]}`); }
+const fmtD = d => `${pad(d.getDate())}-${pad(d.getMonth()+1)}-${d.getFullYear()}`;
+function renderDone(){
+  const list = state.items.filter(i=>isDone(i) && visible(i)).sort((a,b)=>(b.completedAt||'').localeCompare(a.completedAt||''));
+  if (!list.length){ $('main').innerHTML = '<div class="panel empty">Todavía no hay actividades completadas. Al marcar todas las etapas de una actividad como hechas, aparece aquí con todo lo que ingresaste.</div>'; return; }
+  $('main').innerHTML = '<div class="agenda">' + list.map(it=>{
+    const t = typeOf(it.typeId), c = it.completedAt ? new Date(it.completedAt) : null;
+    return `<div class="donecard" style="--c:${t.color}" data-open="${it.id}">
+      <div class="dh"><b>${esc(t.name)} · ${esc(it.label)}</b><span class="okp">✓ Completada${c?` el ${fmtD(c)} ${hm(c)}`:''}</span></div>
+      <div class="dg">${it.stages.map((s,i)=>`<span class="w">${short(parse(s.at))}</span><span>${i+1}. ${esc(s.name)}</span>`).join('')}</div>
+      ${fieldTxt(it).length||it.notes?`<div class="hint" style="color:var(--fg2)">${fieldTxt(it).map(esc).join(' · ')}${it.notes?`${fieldTxt(it).length?' · ':''}Notas: ${esc(it.notes)}`:''}</div>`:''}
+    </div>`;
+  }).join('') + '</div>';
+}
+
+/* ---------- Envío a procesamiento ---------- */
+/* Cada lavado y descarga de columna agrega su ripio con la fecha de salida del horno; los minerales se agregan a mano */
+const ENV_CC = ['RD','MS','IF','SG'], ENV_SN = ['Si','No'];
+const envCC = cc => /^MS/.test(cc||'') ? 'MS' : (cc||'');   // en envíos, Caserones y Lomas Bayas van como MS
+/* Textos cortos para los análisis (el valor guardado es el nombre completo) */
+const AN_BASE = 'Cu, CuSec, Fe, Fe Soluble', AN_FULL = AN_BASE+', Mo, Ag, Au, Co, Ni', AN_MIN = AN_FULL+', Consumo de ácido';
+const AN_SHORT = {[AN_BASE]:'Cu-Fe (4)', [AN_FULL]:'+Mo-Au (9)', [AN_MIN]:'+Ácido (10)', 'N/A':'N/A'};
+/* Análisis según el envío: minerales = todo + consumo de ácido; MS = todo; RD, IF y SG = Cu, CuSec, Fe, Fe soluble.
+   Si se marca N/A o se elige otro a mano, se respeta. */
+const anAuto = e => e.tipo==='Mineral' ? AN_MIN : e.cc==='MS' ? AN_FULL : (e.cc ? AN_BASE : '');
+/* Un envío está «listo» (pasa al historial) cuando tiene los dos tickets, o el de procesamiento y el análisis dice N/A */
+const isNA = v => /^(n\s*\/?\s*a|no aplica|no)$/i.test(String(v||'').trim());
+const envDone = e => !!e.envProc && (!!e.envAna || isNA(e.analisis));
+const ENV_AN = ['Cu, CuSec, Fe, Fe Soluble','Cu, CuSec, Fe, Fe Soluble, Mo, Ag, Au, Co, Ni','Cu, CuSec, Fe, Fe Soluble, Mo, Ag, Au, Co, Ni, Consumo de ácido','N/A'];
+const ripioName = l => { l = String(l||'').trim(); return /^\d/.test(l) ? 'RIPIO '+l : l; };
+const ovenStage = it => it.stages.find(s=>/sacar|salida del horno|pesaje/i.test(s.name));
+function syncEnvios(){
+  state.envios ||= [];
+  state.items.filter(i=>i.typeId==='desc' && !i.sample).forEach(it=>{
+    const s = ovenStage(it); if (!s) return;
+    /* La fecha de envío la pone la usuaria; la de salida del horno viene del calendario */
+    const horno = s.at.slice(0,10), an = (it.fields||{}).analisis || '', cc = envCC(ccOf(it));
+    /* «COL 310-312» son dos columnas distintas: un envío por columna (RIPIO 310 y RIPIO 312) */
+    const nums = (String(it.label||'').match(/\d{1,4}/g)||[]), multi = nums.length > 1;
+    const parts = nums.length ? nums.map(n=>({id: multi ? `r-${it.id}-${n}` : 'r-'+it.id, muestra:'RIPIO '+n})) : [{id:'r-'+it.id, muestra:ripioName(it.label)}];
+    const old = multi ? state.envios.find(x=>x.id==='r-'+it.id) : null;   // envío antiguo con las columnas juntas
+    parts.forEach(p=>{
+      let e = state.envios.find(x=>x.id===p.id);
+      if (!e){
+        e = {id:p.id, from:it.id, tipo:'Ripio', fecha:'', horno, cc, muestra:p.muestra, cond:'', recep:'', analisis:an};
+        if (old){ ['cond','recep','envProc','envAna','del','doneAt'].forEach(k=>{ if (old[k]) e[k] = old[k]; });
+          if (old.edF){ e.fecha = old.fecha; e.edF = 1; } if (old.edA){ e.analisis = old.analisis; e.edA = 1; } if (old.cc){ e.cc = old.cc; e.edC = 1; } }
+        state.envios.push(e); return;
+      }
+      if (!e.edF && e.fecha && !e.horno && !e.envProc) e.fecha = '';   // versión anterior: la fecha se ponía sola
+      e.horno = horno;
+      if (!e.edM && e.muestra!==p.muestra) e.muestra = p.muestra;
+      if (!e.edA && e.analisis!==an) e.analisis = an;
+      if (!e.edC && cc && e.cc!==cc) e.cc = cc;
+      if (/^MS-/.test(e.cc||'')) e.cc = 'MS';
+    });
+    if (old) state.envios = state.envios.filter(x=>x!==old);
+  });
+  state.envios.forEach(e=>{ if (!e.del && !e.edA && !isNA(e.analisis)){ const a = anAuto(e); if (a && e.analisis!==a) e.analisis = a; } });
+  state.envios.forEach(e=>{ if (envDone(e) && !e.doneAt) e.doneAt = new Date().toISOString(); if (!envDone(e) && e.doneAt) delete e.doneAt; });
+  // si se elimina la actividad y el envío no tiene datos propios, sale de la lista
+  if (state.envios.some(e=>e.from && !itemOf(e.from) && !e.cc && !e.cond && !e.recep))
+    state.envios = state.envios.filter(e=>!e.from || itemOf(e.from) || e.cc || e.cond || e.recep);
+}
+const envOpt = (list, v) => ['', ...list, ...(v && !list.includes(v) ? [v] : [])].map(o=>`<option value="${esc(o)}" ${o===v?'selected':''}>${esc(o||'—')}</option>`).join('');
+function renderEnvios(){
+  const today = dkey(new Date());
+  const hist = ui.envTab==='hist';
+  const all = state.envios.filter(e=>!e.del && (!ui.q || ((e.muestra||'')+' '+(e.cc||'')+' '+(CC_NAME[e.cc]||'')).toLowerCase().includes(ui.q)));
+  const nPend = all.filter(e=>!envDone(e)).length, nHist = all.length - nPend;
+  const list = all.filter(e=>hist ? envDone(e) : !envDone(e))
+    .sort((a,b)=>{ const fa = a.fecha||a.horno||'', fb = b.fecha||b.horno||'';
+      return (hist ? fb.localeCompare(fa) : fa.localeCompare(fb)) || (a.muestra||'').localeCompare(b.muestra||'', 'es', {numeric:true}); });
+  /* Estado de los ripios: en el horno hasta el día de salida; desde ese día, listo para envío */
+  /* Etapa real del ripio según el calendario de su columna: programado → lavado → drenaje → horno → listo */
+  const fase = e => {
+    if (hist) return {k:'sent'};
+    if (e.envProc) return {k:'proc'};
+    const it = e.from && itemOf(e.from);
+    if (!it){ return e.horno && e.horno > today ? {k:'horno', hasta:e.horno} : e.horno ? {k:'listo'} : !e.fecha && !e.envAna ? {k:'sinf'} : {k:''}; }
+    const st = it.stages.slice().sort((a,b)=>a.at.localeCompare(b.at));
+    const at = re => (st.find(s=>re.test(s.name))||{}).at;
+    const sal = (at(/salida|sacar|pesaje/i)||e.horno||'').slice(0,10), des = (at(/descarga|secado/i)||'').slice(0,10),
+          dre = (at(/drenaje/i)||'').slice(0,10), lav = (at(/lavado/i)||'').slice(0,10);
+    if (sal && today >= sal) return {k:'listo'};
+    if (des && today >= des) return {k:'horno', hasta:sal};
+    if (dre && today >= dre) return {k:'drenaje', hasta:des};
+    if (lav && today >= lav) return {k:'lavado', hasta:dre};
+    return {k:'prog', desde:lav||dre||des};
+  };
+  const FASE_TXT = {sinf:'Listo para envío', lavado:'En lavado', drenaje:'En drenaje', horno:'En el horno', listo:'Listo para envío', proc:'Falta análisis', sent:'Enviado', prog:'Programado'};
+  const FASE_SUB = {lavado:'drenaje desde', drenaje:'descarga el', horno:'sale', prog:'inicia'};
+  /* Orden de los pendientes: falta análisis, listos para envío sin fecha ni ticket (rojo), en el horno, en drenaje, en lavado, programados y el resto */
+  const RANK = {proc:0, sinf:1, listo:1, horno:3, drenaje:4, lavado:5, prog:6};
+  if (!hist) list.sort((a,b)=>{ const ra = RANK[fase(a).k] ?? 7, rb = RANK[fase(b).k] ?? 7;
+    return ra-rb || (a.horno||a.fecha||'').localeCompare(b.horno||b.fecha||'') || (a.muestra||'').localeCompare(b.muestra||'', 'es', {numeric:true}); });
+  const estado = (e, f=fase(e)) => !f.k ? '' : `<span class="est ${f.k}">${FASE_TXT[f.k]}</span>${(f.hasta||f.desde) && FASE_SUB[f.k] ? `<span class="hint">${FASE_SUB[f.k]} ${fmtD(parse(f.hasta||f.desde))}</span>` : ''}`;
+  $('main').innerHTML = `<div class="panel">
+    <div class="envh"><div><h2>${hist ? 'Historial de envíos' : 'Envío a procesamiento'}</h2></div>
+      <div class="bar"><button class="pri" id="eAdd" type="button">+ Agregar mineral</button></div></div>
+    <div class="seg envtabs" role="group" aria-label="Lista de envíos"><button type="button" data-envtab="pend" aria-pressed="${!hist}">Pendientes (${nPend})</button><button type="button" data-envtab="hist" aria-pressed="${hist}">Historial de enviados (${nHist})</button></div>
+    ${hist ? '' : '<div class="envleg"><span class="hint">Orden:</span><span class="est proc">Falta análisis</span><span class="est listo">Listo para envío (sin fecha ni ticket)</span><span class="est horno">En el horno</span><span class="est drenaje">En drenaje</span><span class="est lavado">En lavado</span><span class="est prog">Programado</span></div>'}
+    ${list.length ? `<div class="tblw"><table class="env"><thead><tr><th style="width:130px">Fecha envío</th><th style="width:88px">CC</th><th style="min-width:180px">ID muestra</th><th style="width:130px">Fecha recepción</th><th style="width:105px" title="Se pone solo: RD, IF y SG = Cu-Fe (4): Cu, CuSec, Fe, Fe Soluble · MS = +Mo-Au (9): además Mo, Ag, Au, Co, Ni · Minerales = +Ácido (10): los 9 más consumo de ácido · N/A se elige a mano">Análisis</th><th style="width:58px;text-align:center" title="Enviado a procesamiento">Env. proc.</th><th style="width:58px;text-align:center" title="Enviado a análisis">Env. aná.</th><th style="width:130px">Estado</th><th style="width:40px"></th></tr></thead><tbody>
+    ${list.map(e=>`<tr data-env="${e.id}" class="${{sent:'sent', sinf:'f-sinf', horno:'f-horno', listo:'f-sinf', lavado:'f-lav', drenaje:'f-dre', prog:'f-prog'}[fase(e).k]||''}" style="--c:${e.tipo==='Mineral'?'#1c5cab':'#b5543c'}">
+      <td><input type="date" data-ef="fecha" value="${esc(e.fecha||'')}" aria-label="Fecha envío"></td>
+      <td><select data-ef="cc" aria-label="Centro de costo" class="envcc" style="--cc:${CC_COLOR[e.cc]||CC_COLOR['']}">${envOpt(ENV_CC, e.cc)}</select></td>
+      <td><textarea data-ef="muestra" rows="1" class="envm" aria-label="ID muestra" placeholder="Ej: M-21">${esc(e.muestra)}</textarea><span class="tipo${e.tipo==='Mineral'?' min':''}">${esc(e.tipo||'Ripio')}</span></td>
+      <td><input type="date" data-ef="recep" value="${esc(e.recep)}" aria-label="Fecha recepción"></td>
+      <td><select data-ef="analisis" class="envan" aria-label="Análisis" title="${esc(e.analisis||'')}">${['', ...ENV_AN, ...(e.analisis && !ENV_AN.includes(e.analisis) ? [e.analisis] : [])].map(o=>`<option value="${esc(o)}" ${o===e.analisis?'selected':''} title="${esc(o)}">${esc(o ? (AN_SHORT[o]||o) : '—')}</option>`).join('')}</select></td>
+      <td class="ckc"><button class="ck" type="button" role="checkbox" aria-checked="${e.envProc?'true':'false'}" data-eck="${e.id}|envProc" aria-label="Enviado a procesamiento: ${esc(e.muestra||'')}" title="Enviado a procesamiento">✓</button></td>
+      <td class="ckc">${isNA(e.analisis)
+        ? `<span class="ck na" role="img" aria-label="Análisis no aplica: ${esc(e.muestra||'')}" title="Análisis N/A: no se envía a análisis">✕</span>`
+        : `<button class="ck" type="button" role="checkbox" aria-checked="${e.envAna?'true':'false'}" data-eck="${e.id}|envAna" aria-label="Enviado a análisis: ${esc(e.muestra||'')}" title="Enviado a análisis">✓</button>`}</td>
+      <td class="estc">${estado(e)}</td>
+      <td><button class="x" type="button" data-edel="${e.id}" aria-label="Quitar de la lista">×</button></td></tr>`).join('')}
+    </tbody></table></div>` : `<p class="empty">${hist ? 'Todavía no hay envíos completos en el historial.' : 'No hay envíos pendientes. Al programar un lavado y descarga de columna aparece aquí su ripio; los minerales se agregan con «+ Agregar mineral».'}</p>`}
+  </div>`;
+  document.querySelectorAll('[data-envtab]').forEach(b=>b.onclick=()=>{ ui.envTab = b.dataset.envtab; render(); });
+  document.querySelectorAll('textarea.envm').forEach(t=>{ const fit = ()=>{ t.style.height='auto'; t.style.height = t.scrollHeight+'px'; }; fit(); t.addEventListener('input', fit); });
+  $('eAdd').onclick = ()=>{
+    const id = uid(); state.envios.push({id, tipo:'Mineral', fecha:'', cc:'', muestra:'', cond:'', recep:'', analisis:''});
+    render(); const r = document.querySelector(`[data-env="${id}"] [data-ef="muestra"]`); r && r.focus();
+  };
+  if ($('eFile')) $('eFile').onchange = ev=>{   // importación de planilla: ya no se muestra el botón
+    const f = ev.target.files[0]; if (!f) return; const X = window.XLSX;
+    if (!X){ toast('No se pudo cargar el lector de Excel (revisa la conexión a internet)'); return; }
+    const r = new FileReader();
+    r.onload = ()=>{ try {
+      const wb = X.read(new Uint8Array(r.result), {type:'array'}); let n = 0;
+      wb.SheetNames.forEach(sn=>{
+        const rows = X.utils.sheet_to_json(wb.Sheets[sn], {header:1, raw:true, defval:''});
+        const h = rows.findIndex(rw=>/fecha env/i.test(String(rw[0])));
+        if (h<0) return;
+        rows.slice(h+1).forEach(rw=>{
+          const muestra = String(rw[2]||'').trim(); if (!muestra) return;
+          const fecha = xlDate(rw[0]), key = fecha+'|'+muestra.toLowerCase();
+          if (state.envios.some(e=>!e.del && (e.fecha+'|'+String(e.muestra||'').toLowerCase())===key)) return;
+          state.envios.push({id:uid(), tipo:/^m-?\d/i.test(muestra)?'Mineral':'Ripio', fecha, cc:String(rw[1]||'').trim(), muestra, cond:String(rw[3]||'').trim(), recep:xlDate(rw[4]), analisis:String(rw[5]||'').trim()});
+          n++;
+        });
+      });
+      render(); toast(n ? `${n} envío${n>1?'s':''} importado${n>1?'s':''} de la planilla` : 'La planilla no tenía envíos nuevos');
+    } catch(_){ toast('No se pudo leer ese Excel'); } };
+    r.readAsArrayBuffer(f); ev.target.value = '';
+  };
+}
+/* Fecha de Excel (número de serie o texto dd-mm-aaaa) a aaaa-mm-dd */
+function xlDate(v){
+  if (typeof v==='number' && v>0){ const d = new Date(Math.round((v-25569)*864e5)); return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())}`; }
+  const m = String(v||'').trim().match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})$/);
+  return m ? `${m[3]}-${pad(m[2])}-${pad(m[1])}` : '';
+}
+
+/* ---------- Estado de pago (EDP) ---------- */
+/* MS = Pipeline Growth (PW) · MS-A = Caserones (Esmeralda) · MS-B = Lomas Bayas (Maqui) */
+const CC_LIST = ['MS','MS-A','MS-B','RD','IF','SG'];
+const CC_NAME = {'MS':'Pipeline Growth (PW)','MS-A':'Caserones (Esmeralda)','MS-B':'Lomas Bayas (Maqui)','RD':'R&D Testing','IF':'Industrial Feasibility','SG':'SG','':'Sin centro de costo'};
+const CC_COLOR = {'MS':'#1f6f8b','MS-A':'#b5543c','MS-B':'#1baf7a','RD':'#6250d6','IF':'#c98a00','SG':'#e87ba4','':'#898781'};
+function normCC(v){
+  const s = String(v||'').trim().toUpperCase().replace(/\s+/g,'');
+  if (!s) return '';
+  if (CC_LIST.includes(s)) return s;
+  if (/^MS-?(PW|PG)/.test(s)) return 'MS';
+  if (/^MS-?(CAS|ESM)/.test(s)) return 'MS-A';
+  if (/^MS-?(LB|LOM|MAQ)/.test(s)) return 'MS-B';
+  if (s==='IP') return 'RD';
+  return '';
+}
+const ccOf = it => normCC(it.cc) || normCC(it.fields && it.fields.area);
+const capi = s => String(s).charAt(0).toUpperCase()+String(s).slice(1);
+const fold = s => String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
+const mesTxt = (y,m) => `${capi(MONL[m])} ${y}`;
+const MONS = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const clp = n => '$ ' + Math.round(n).toLocaleString('es-CL');
+
+/* Columnas: se cobran desde «Carga de columna» hasta «Descarga de columna y muestreo», contando ambos días.
+   «COL 310-312» son dos columnas: la 310 y la 312. */
+const colNums = it => (String(it.label||'').match(/\d{1,4}/g)||[]).map(Number);
+const startStage = it => it.typeId==='carga' ? (it.stages.find(s=>/^carga de columna/i.test(s.name)) || it.stages.find(s=>/^carga/i.test(s.name))) : null;
+const endStage = it => it.typeId==='desc' ? it.stages.find(s=>/^descarga/i.test(s.name)) : null;
+const day0 = d => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const TESTS = [
+  {k:'acid', ids:['acid'], re:/consumo de acido/, name:'Consumo de ácido'},
+  {k:'pla', ids:['pla'], re:/lixi\w*bilidad|lixiviacion agitada/, name:'PLA (lixiviabilidad agitada)'},
+  {k:'hum', ids:['hum'], re:/humedad/, name:'Humedad mineral'},
+  {k:'dap', ids:['dap'], re:/densidad aparente/, name:'Densidad aparente'},
+  {k:'dreal', ids:['dreal'], re:/densidad real/, name:'Densidad real'},
+  {k:'sulf', ids:['sulf'], re:/sulfatac/, name:'Sulfatación'},
+  {k:'ch', ids:['chag','chsa'], re:/conductividad hidraulica/, name:'Conductividad hidráulica'},
+  {k:'sx', ids:['sx'], re:/extraccion por solvente|\bsx\b/, name:'Extracción por solventes (SX)'},
+];
+const epItems = () => state.items.filter(it=>!it.sample && it.stages && it.stages.length);
+function columnEvents(){
+  const ev = [];
+  epItems().forEach(it=>{ const cc = ccOf(it);
+    [[startStage(it),'Inicio'],[endStage(it),'Descarga']].forEach(([s,kind])=>{ if (!s) return;
+      colNums(it).forEach(n=>ev.push({d:day0(parse(s.at)), kind, n, cc, it, done:!!s.done, first:day0(parse(it.stages[0].at))})); });
+  });
+  return ev.sort((a,b)=>a.d-b.d || a.n-b.n);
+}
+function columnLog(){
+  const cols = {};
+  columnEvents().forEach(e=>{ const c = cols[e.n] ||= {n:e.n, cc:'', start:null, end:null, first:null};
+    if (e.cc && (!c.cc || e.kind==='Inicio')) c.cc = e.cc;
+    if (!c.first || e.first<c.first) c.first = e.first;
+    if (e.kind==='Inicio'){ if (!c.start || e.d>c.start) c.start = e.d; } else if (!c.end || e.d>c.end) c.end = e.d; });
+  return Object.values(cols).sort((a,b)=>a.n-b.n);
+}
+function colDays(c, y, m){
+  const a = new Date(y,m,1), b = new Date(y,m+1,0);
+  // Sin carga registrada: se cuenta desde el día 1 del mes en que empieza su lavado
+  let s = c.start || (c.first ? new Date(c.first.getFullYear(), c.first.getMonth(), 1) : null), e = c.end;
+  if (s && e && e < s) e = null;            // la descarga es de un ciclo anterior: la columna volvió a cargarse
+  if (!s && !e) return 0;
+  if ((s && s > b) || (e && e < a)) return 0;
+  const from = s && s > a ? s : a, to = e && e < b ? e : b;
+  return Math.round((to-from)/864e5) + 1;
+}
+/* Pruebas: se cuentan UNA vez por muestra, sin importar cuántas etapas tenga el proceso
+   (preparación, inicio, lavado, secado… todo es «Sulfatación»).
+   «Sulfataciones 29a la 36» son 8 muestras: 29, 30, 31, 32, 33, 34, 35 y 36.
+   Se cobran en el mes en que TERMINA el proceso (fecha de su última etapa). */
+function sampleIds(label){
+  const raw = String(label||'').trim(), s = fold(raw);
+  const r = s.match(/(\d+)\s*(?:a la|al|a|hasta|-|–)\s*(\d+)/);
+  const pre = (raw.match(/^([A-Za-z]{1,4})[\s-]*\d/)||[])[1];   // prefijo corto como «CH 5-6» → CH 5, CH 6
+  const sh = n => pre ? `${pre.toUpperCase()} ${n}` : String(n);
+  if (r){ const a = +r[1], b = +r[2];
+    if (b>a && b-a<=200) return Array.from({length:b-a+1}, (_,i)=>({id:String(a+i), show:sh(a+i)})); }
+  const ns = s.match(/\d+/g);
+  if (ns && ns.length>1 && /^[^\d]*\d+(\s*(,|y)\s*\d+)+[^\d]*$/.test(s)) return ns.map(n=>({id:String(+n), show:sh(+n)}));   // «29, 30 y 31»
+  return raw ? [{id:s, show:raw}] : [];
+}
+const itemEnd = it => it.stages.reduce((mx,s)=>{ const d = parse(s.at); return d>mx ? d : mx; }, parse(it.stages[0].at));
+function testRecords(){
+  const recs = [];
+  epItems().forEach(it=>{ const t = TESTS.find(t=>t.ids.includes(it.typeId)); if (!t) return;
+    const start = day0(parse(it.stages[0].at)), end = day0(itemEnd(it)), cc = ccOf(it);
+    sampleIds(it.label).forEach(x=>recs.push({k:t.k, cc, id:x.id, show:x.show, start, end, items:[it]})); });
+  // La misma muestra en varias actividades del mismo proceso (p. ej. preparación y lavado por separado) cuenta una sola vez
+  recs.sort((a,b)=>a.start-b.start);
+  const out = [], last = {};
+  recs.forEach(r=>{ const key = r.k+'|'+r.cc+'|'+r.id, g = last[key];
+    if (g && r.start - g.end <= 15*864e5){ if (r.end > g.end) g.end = r.end; g.items.push(...r.items); return; }
+    last[key] = {...r, items:[...r.items]}; out.push(last[key]); });
+  return out.sort((a,b)=>String(a.show).localeCompare(String(b.show),'es',{numeric:true}));
+}
+function edpMonth(y, m){
+  const nd = new Date(y,m+1,0).getDate(), inM = d => d && d.getFullYear()===y && d.getMonth()===m;
+  const fin = new Date(y,m+1,0), R = {};
+  CC_LIST.concat('').forEach(cc=>{ R[cc] = {full:[], part:[], days:0, ini:[], des:[], tests:{}, noStart:[], items:[], yearCols:new Set()}; TESTS.forEach(t=>R[cc].tests[t.k]=[]); });
+  columnLog().forEach(c=>{ const r = R[c.cc] || R[''], dd = colDays(c,y,m);
+    if (dd>=nd) r.full.push(c.n); else if (dd>0) r.part.push({n:c.n, d:dd});
+    if (dd>0 && !c.start) r.noStart.push(c.n); });
+  columnEvents().forEach(e=>{ const r = R[e.cc] || R[''];
+    if (e.kind==='Inicio' && e.d.getFullYear()===y && e.d<=fin) r.yearCols.add(e.n);
+    if (!inM(e.d)) return;
+    (e.kind==='Inicio' ? r.ini : r.des).push({n:e.n, d:e.d}); if (!r.items.includes(e.it)) r.items.push(e.it); });
+  testRecords().forEach(g=>{ if (!inM(g.end)) return; const r = R[g.cc] || R[''];
+    r.tests[g.k].push(g.show); g.items.forEach(it=>{ if (!r.items.includes(it)) r.items.push(it); }); });
+  Object.values(R).forEach(r=>{ r.full.sort((a,b)=>a-b); r.part.sort((a,b)=>a.n-b.n); r.days = r.part.reduce((s,p)=>s+p.d,0);
+    r.nTests = TESTS.reduce((s,t)=>s+r.tests[t.k].length,0); r.any = r.full.length||r.part.length||r.ini.length||r.des.length||r.nTests; });
+  return R;
+}
+function monthItems(y, m){
+  const a = new Date(y,m,1), b = new Date(y,m+1,0,23,59), out = new Set();
+  const opNums = new Set(columnLog().filter(c=>colDays(c,y,m)>0).map(c=>c.n));
+  epItems().forEach(it=>{
+    if ((startStage(it) || endStage(it)) && colNums(it).some(n=>opNums.has(n))) out.add(it);
+  });
+  testRecords().forEach(g=>{ if (g.end>=a && g.end<=b) g.items.forEach(it=>out.add(it)); });
+  return [...out].sort((x,z)=>String(x.label).localeCompare(String(z.label),'es',{numeric:true}));
+}
+const partTxt = part => { const g = {}; part.forEach(p=>(g[p.d] ||= []).push(p.n));
+  return Object.entries(g).sort((a,b)=>b[0]-a[0]).map(([d,ns])=>`${ns.join('-')} (${d} ${+d===1?'día':'días'})`).join(' / '); };
+
+/* Balances base: se guardan solo en este navegador (precios incluidos), nunca en la página publicada */
+const EP_KEY = KEY+'-ep';
+let ep = {templates:{}, manual:{}};
+try { const s = JSON.parse(localStorage.getItem(EP_KEY)||'null'); if (s && s.templates) ep = {templates:s.templates, manual:s.manual||{}}; } catch(e){}
+const saveEp = () => { try { localStorage.setItem(EP_KEY, JSON.stringify(ep)); return true; } catch(e){ toast('Este navegador no tiene espacio para guardar los balances base'); return false; } };
+const toB64 = buf => { const u = new Uint8Array(buf); let s=''; for (let i=0;i<u.length;i+=8192) s += String.fromCharCode.apply(null, u.subarray(i,i+8192)); return btoa(s); };
+const fromB64 = b => Uint8Array.from(atob(b), c=>c.charCodeAt(0));
+const MES_RE = /(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)(\s*)(\d{4})/i;
+function ccFromBalance(title, fname){
+  const t = fold(title)+' | '+fold(fname);
+  if (/pipeline|_ms_pw|ms-pg|ms_pg/.test(t)) return 'MS';
+  if (/caserones|esmeralda/.test(t)) return 'MS-A';
+  if (/lomas bayas|maqui/.test(t)) return 'MS-B';
+  if (/r&d|rd testing|_rd\b/.test(t)) return 'RD';
+  if (/industrial feasibility|_if\b|_if\./.test(t)) return 'IF';
+  if (/\bsg\b|_sg\b/.test(t)) return 'SG';
+  return '';
+}
+/* Abre la primera hoja de un balance editando el XML del archivo, para conservar formato, fórmulas e imágenes */
+async function openBalance(buf){
+  const zip = await window.JSZip.loadAsync(buf);
+  const P = new DOMParser(), S = new XMLSerializer();
+  const xml = async p => { const f = zip.file(p); if (!f) throw new Error('El archivo no es un Excel válido.'); return P.parseFromString(await f.async('string'), 'application/xml'); };
+  const out = d => { const s = S.serializeToString(d); return s.startsWith('<?xml') ? s : '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'+s; };
+  const wbx = await xml('xl/workbook.xml'), rels = await xml('xl/_rels/workbook.xml.rels');
+  const sh = wbx.getElementsByTagName('sheet')[0], rid = sh.getAttribute('r:id');
+  const rel = [...rels.getElementsByTagName('Relationship')].find(r=>r.getAttribute('Id')===rid);
+  const tg = rel.getAttribute('Target'), sheetPath = tg.startsWith('/') ? tg.slice(1) : 'xl/'+tg.replace(/^\.\//,'');
+  const sst = zip.file('xl/sharedStrings.xml') ? [...(await xml('xl/sharedStrings.xml')).getElementsByTagName('si')].map(si=>[...si.getElementsByTagName('t')].map(t=>t.textContent).join('')) : [];
+  const doc = await xml(sheetPath), NS = doc.documentElement.namespaceURI, sd = doc.getElementsByTagName('sheetData')[0];
+  const rows = {}; [...sd.getElementsByTagName('row')].forEach(r=>rows[+r.getAttribute('r')] = r);
+  const colIdx = ref => [...ref.match(/^[A-Z]+/)[0]].reduce((n,ch)=>n*26+ch.charCodeAt(0)-64, 0);
+  const getCell = (ref, create) => {
+    const rn = +ref.match(/\d+$/)[0]; let row = rows[rn];
+    if (!row){ if (!create) return null; row = doc.createElementNS(NS,'row'); row.setAttribute('r', rn);
+      const nx = Object.keys(rows).map(Number).filter(k=>k>rn).sort((a,b)=>a-b)[0]; sd.insertBefore(row, nx ? rows[nx] : null); rows[rn] = row; }
+    let c = [...row.childNodes].find(x=>x.nodeName==='c' && x.getAttribute('r')===ref);
+    if (!c && create){ c = doc.createElementNS(NS,'c'); c.setAttribute('r', ref);
+      row.insertBefore(c, [...row.childNodes].find(x=>x.nodeName==='c' && colIdx(x.getAttribute('r'))>colIdx(ref)) || null); }
+    return c;
+  };
+  const text = ref => { const c = getCell(ref); if (!c) return ''; const t = c.getAttribute('t');
+    if (t==='s'){ const v = c.getElementsByTagName('v')[0]; return v ? (sst[+v.textContent]||'') : ''; }
+    if (t==='inlineStr') return [...c.getElementsByTagName('t')].map(x=>x.textContent).join('');
+    const v = c.getElementsByTagName('v')[0]; return v ? v.textContent : ''; };
+  const setVal = (ref, v) => { const c = getCell(ref, true); while (c.firstChild) c.removeChild(c.firstChild); c.removeAttribute('t');
+    if (typeof v==='number'){ const e = doc.createElementNS(NS,'v'); e.textContent = String(v); c.appendChild(e); }
+    else if (v!==''){ c.setAttribute('t','inlineStr'); const is = doc.createElementNS(NS,'is'), t = doc.createElementNS(NS,'t');
+      t.setAttributeNS('http://www.w3.org/XML/1998/namespace','xml:space','preserve'); t.textContent = v; is.appendChild(t); c.appendChild(is); } };
+  const nums = () => Object.keys(rows).map(Number).sort((a,b)=>a-b);
+  return {zip, wbx, doc, sheetPath, out, getCell, text, setVal, nums};
+}
+/* Lee la estructura del balance: secciones, ítems, unidades y precios */
+function parseTemplate(c, file){
+  const cc = ccFromBalance(c.text('C3'), file);
+  if (!cc) throw new Error('No reconozco su centro de costo (celda C3 «Centro de costos»).');
+  const secs = [], rows = [], cant = {}; let sec = 0;
+  for (const rn of c.nums()){
+    const aRaw = c.text('A'+rn).trim(), a = fold(aRaw), bName = c.text('B'+rn).trim(), b = fold(bName);
+    const ms = a.match(/^(\d+)\.\s/); if (ms){ sec = +ms[1]; secs.push({n:sec, title:aRaw}); continue; }
+    if (a.startsWith('cantidad')){ cant[sec] = rn; continue; }
+    if (!/^\d+[a-z]?$/.test(a) || !bName) continue;
+    const e = c.getCell('E'+rn), ef = e && e.getElementsByTagName('f')[0], ext = !!(ef && ef.textContent.includes('!'));
+    const eTxt = c.text('E'+rn), pn = Number(eTxt);
+    let kind = 'manual', key = '';
+    if (/operacion columnas/.test(b)){ kind = 'cal'; key = /no completo/.test(b) ? 'part' : 'full'; }
+    else { const t = TESTS.find(t=>t.re.test(b)); if (t){ kind = 'cal'; key = 'test:'+t.k; } }
+    rows.push({rn, sec, item:aRaw, act:bName, unit:c.text('C'+rn).trim(), frec:c.text('D'+rn).trim(),
+      price: eTxt!=='' && isFinite(pn) ? pn : null, ext, kind, key, q0:+c.text('F'+rn)||0, obs0:c.text('H'+rn).trim()});
+  }
+  return {cc, file, title:c.text('C3').trim(), head:c.text('B1').trim(), secs, rows, cant, hasPart: rows.some(r=>r.key==='part')};
+}
+const epMK = (y,m) => `${y}-${pad(m+1)}`;
+/* El precio de las filas que vienen de otra pestaña (preparación de soluciones) depende de las recetas del mes: no se usa el del mes anterior */
+const priceOf = row => row.ext ? null : row.price;
+function epQty(tpl, row, R, mk){
+  const r = R[tpl.cc];
+  if (row.kind==='cal'){
+    if (row.key==='full') return {q:r.full.length, obs:[r.full.length ? 'Columnas '+r.full.join('-') : '', !tpl.hasPart && r.part.length ? 'Revisar, mes no completo: '+partTxt(r.part) : ''].filter(Boolean).join(' · ')};
+    if (row.key==='part') return {q:r.days, obs:r.part.length ? 'Columnas '+partTxt(r.part) : ''};
+    const L = r.tests[row.key.slice(5)]; return {q:L.length, obs:L.join(' - ')};
+  }
+  const man = ((ep.manual[mk]||{})[tpl.cc]||{})[row.rn];
+  if (man) return {q:+man.q||0, obs:man.obs||''};
+  return {q: row.ext ? row.q0 : 0, obs: /^detalle/.test(fold(row.obs0)) ? row.obs0 : ''};
+}
+function epTotals(tpl, R, mk){
+  let total = 0, pending = false; const secT = {};
+  tpl.rows.forEach(row=>{ const {q} = epQty(tpl,row,R,mk);
+    const p = priceOf(row);
+    if (p==null){ if (q) pending = true; return; }
+    const v = p*q; total += v; secT[row.sec] = (secT[row.sec]||0) + v; });
+  return {total, pending, secT};
+}
+async function fillBalance(tpl, R, y, m){
+  const c = await openBalance(fromB64(tpl.b64)), mk = epMK(y,m), r = R[tpl.cc];
+  let tests = 0;
+  tpl.rows.forEach(row=>{ const {q, obs} = epQty(tpl,row,R,mk); c.setVal('F'+row.rn, q); c.setVal('H'+row.rn, obs); if (row.key.startsWith('test:')) tests += q; });
+  Object.entries(tpl.cant).forEach(([s, rn])=>{
+    if (+s===3) c.setVal('B'+rn, `${r.full.length + r.part.length} columnas`);
+    else if (+s===4) c.setVal('B'+rn, tests);
+    else if (!tpl.rows.some(x=>x.sec===+s && x.ext)) c.setVal('B'+rn, tpl.rows.filter(x=>x.sec===+s).reduce((t,x)=>t+(epQty(tpl,x,R,mk).q?1:0),0));
+  });
+  const hoy = new Date();
+  c.setVal('E1', mesTxt(y,m));
+  c.setVal('C2', `${pad(hoy.getDate())} de ${capi(MONL[hoy.getMonth()])} ${hoy.getFullYear()}`);
+  // Borra los resultados guardados de las fórmulas para que Excel las recalcule al abrir
+  [...c.doc.getElementsByTagName('c')].forEach(x=>{ if (x.getElementsByTagName('f').length) [...x.getElementsByTagName('v')].forEach(v=>v.remove()); });
+  let cp = c.wbx.getElementsByTagName('calcPr')[0];
+  if (!cp){ cp = c.wbx.createElementNS(c.wbx.documentElement.namespaceURI,'calcPr'); const ref = c.wbx.getElementsByTagName('definedNames')[0] || c.wbx.getElementsByTagName('sheets')[0]; ref.parentNode.insertBefore(cp, ref.nextSibling); }
+  cp.setAttribute('fullCalcOnLoad','1');
+  c.zip.file(c.sheetPath, c.out(c.doc)); c.zip.file('xl/workbook.xml', c.out(c.wbx));
+  const name = MES_RE.test(tpl.file) ? tpl.file.replace(MES_RE, (_,mm,sp)=>`${capi(MONL[m])}${sp}${y}`) : tpl.file.replace(/\.xlsx$/i, `_${capi(MONL[m])} ${y}.xlsx`);
+  return {name, blob: await c.zip.generateAsync({type:'blob', mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', compression:'DEFLATE'})};
+}
+
+/* ---------- Vista Estado de pago ---------- */
+let epCC = 'MS';
+function renderEP(){
+  const y = ui.y, m = ui.m, mk = epMK(y,m), R = edpMonth(y,m);
+  const tpls = ep.templates, nTpl = Object.keys(tpls).length;
+  const missing = monthItems(y,m).filter(it=>!ccOf(it));
+  const kpi = CC_LIST.map(cc=>{ const r = R[cc], t = tpls[cc], tot = t ? epTotals(t,R,mk) : null;
+    return `<button type="button" class="epk${cc===epCC?' on':''}" data-epsel="${cc}" style="--c:${CC_COLOR[cc]}" aria-pressed="${cc===epCC}">
+      <span class="epk-h"><b>${cc}</b><span>${esc(CC_NAME[cc])}</span></span>
+      <span class="epk-v">${tot ? clp(tot.total)+(tot.pending?'*':'') : '<span class="hint">sin balance base</span>'}</span>
+      <span class="epk-g"><span><b>${r.full.length+r.part.length}</b> col. operadas</span><span><b>${r.ini.length}</b> inicios</span><span><b>${r.des.length}</b> descargas</span><span><b>${r.yearCols.size}</b> cargadas en ${y}</span></span>
+    </button>`; }).join('');
+  const t = tpls[epCC], r = R[epCC];
+  let sheet;
+  if (t){
+    const tot = epTotals(t,R,mk), hoy = new Date();
+    const extra = TESTS.filter(x=>r.tests[x.k].length && !t.rows.some(row=>row.key==='test:'+x.k));
+    sheet = `<div class="eps">
+      <div class="eps-head"><div><span class="lbl">${esc(t.head || 'Reporte mensual operaciones metalúrgicas')}</span><h3>${esc(t.title)}</h3>
+        <span class="hint">Centro de costo ${epCC} · Fecha reporte: ${pad(hoy.getDate())} de ${capi(MONL[hoy.getMonth()])} ${hoy.getFullYear()}</span></div>
+        <div class="eps-tot"><span class="lbl">Valor total · ${mesTxt(y,m)}</span><b>${clp(tot.total)}</b>${tot.pending?'<span class="hint">* más el costo de reactivos, que la planilla calcula en su pestaña de soluciones</span>':''}</div></div>
+      ${t.secs.map(s=>{ const rows = t.rows.filter(x=>x.sec===s.n); if (!rows.length) return '';
+        return `<div class="eps-sec"><div class="eps-sh"><b>${esc(s.title)}</b><span>${clp(tot.secT[s.n]||0)}</span></div>
+        <div class="tblw"><table class="ept"><thead><tr><th>Ítem</th><th>Actividad</th><th>Unidad</th><th>Frecuencia</th><th class="r">Precio unitario</th><th class="r">Cantidad</th><th class="r">Valor total</th><th>Observaciones</th></tr></thead><tbody>
+        ${rows.map(row=>{ const {q, obs} = epQty(t,row,R,mk), p = priceOf(row), val = p==null ? null : p*q, man = row.kind!=='cal';
+          return `<tr class="${man?'':'cal'}${q?'':' z'}"><td>${esc(row.item)}</td><td>${esc(row.act)}${man?'':' <span class="tagc">calendario</span>'}</td><td>${esc(row.unit)}</td><td>${esc(row.frec)}</td>
+            <td class="r">${p!=null ? clp(p) : row.ext ? '<span class="hint" title="Se calcula en la pestaña de preparación de soluciones de la planilla">pestaña soluciones</span>' : '<span class="hint">sin precio</span>'}</td>
+            <td class="r">${man ? `<input type="number" min="0" step="0.5" id="epq-${row.rn}" data-epq="${row.rn}" value="${q}" aria-label="Cantidad ${esc(row.act)}">` : `<b>${q}</b>`}</td>
+            <td class="r">${val==null ? '—' : clp(val)}</td>
+            <td>${man ? `<input type="text" id="epo-${row.rn}" data-epo="${row.rn}" value="${esc(obs)}" aria-label="Observaciones ${esc(row.act)}">` : esc(obs)}</td></tr>`; }).join('')}
+        </tbody></table></div></div>`; }).join('')}
+      ${extra.length ? `<p class="hint">Del calendario pero sin ítem en esta planilla: ${extra.map(x=>`${esc(x.name)} (${r.tests[x.k].length}: ${esc(r.tests[x.k].join(', '))})`).join(' · ')}.</p>` : ''}
+      <div class="bar" style="justify-content:space-between"><span class="hint">Base: ${esc(t.file)}. Las filas «calendario» se calculan solas; las demás las completas tú y quedan guardadas para este mes.</span>
+        <button class="pri" type="button" id="epDl">Descargar balance ${epCC} · ${mesTxt(y,m)}</button></div>
+    </div>`;
+  } else {
+    sheet = `<div class="eps"><p class="empty">No hay balance base de ${epCC} (${esc(CC_NAME[epCC])}). Carga el .xlsx de cualquier mes con «Cargar balances base» y desde ahí se llena solo cada mes.</p>
+      <div class="dg">${[['Columnas mes completo', r.full.join('-')],['Columnas mes no completo', partTxt(r.part)],...TESTS.map(x=>[x.name, r.tests[x.k].join(' - ')])].filter(x=>x[1]).map(([k,v])=>`<span class="w">${esc(k)}</span><span>${esc(v)}</span>`).join('') || '<span class="hint">Sin actividades este mes.</span>'}</div></div>`;
+  }
+  const noStart = CC_LIST.concat('').flatMap(c=>R[c].noStart).sort((a,b)=>a-b);
+  $('main').innerHTML = `<div class="panel">
+    <div class="envh"><div><h2>Estado de pago · ${mesTxt(y,m)}</h2><p class="hint">Se llena con el calendario: columnas (desde la carga hasta la descarga, contando ambos días), sulfataciones, PLA, conductividad hidráulica, consumo de ácido, densidades, humedad y SX. Cada prueba cuenta una sola vez por muestra («29a la 36» = 8 muestras), sin importar cuántas etapas tenga, y se cobra en el mes en que termina su última etapa.</p></div>
+      <div class="bar"><button type="button" id="epLoad">Cargar balances base (.xlsx)</button><input type="file" id="epFile" accept=".xlsx" multiple hidden>
+        <button type="button" id="epAll" ${nTpl?'':'disabled'}>Descargar todos los balances</button><button type="button" id="epLev">Levantamiento de columnas ${y}</button></div></div>
+    ${missing.length ? `<details class="alert" open><summary><b>⚠ ${missing.length} actividad${missing.length>1?'es':''} de este mes sin centro de costo</b>: no entran en ningún balance</summary>
+      <div class="epcc">${missing.map(it=>`<label><span>${esc(it.label)} <span class="hint">${esc(typeOf(it.typeId).name)}</span></span><select id="epcc-${it.id}" data-epcc="${it.id}">${['',...CC_LIST].map(c=>`<option value="${c}">${c||'— CC —'}</option>`).join('')}</select></label>`).join('')}</div></details>` : ''}
+    ${noStart.length ? `<p class="hint">Columnas sin carga registrada en el calendario (se cuentan desde el día 1 del mes en que empieza su lavado): ${noStart.join(', ')}. Para que los días sean exactos, programa su «Carga de columna» con la fecha real.</p>` : ''}
+    <div class="epks">${kpi}</div>
+    ${sheet}
+  </div>`;
+  $('epLoad').onclick = ()=>$('epFile').click();
+  $('epFile').onchange = async ev=>{
+    const files = [...ev.target.files]; ev.target.value = ''; if (!files.length) return;
+    if (!window.JSZip){ toast('No se pudo cargar el lector de Excel (revisa la conexión a internet)'); return; }
+    const ok = [], bad = [];
+    for (const f of files){ try { const buf = await f.arrayBuffer(); const tpl = parseTemplate(await openBalance(buf.slice(0)), f.name); tpl.b64 = toB64(buf); ep.templates[tpl.cc] = tpl; ok.push(tpl.cc); } catch(e){ bad.push(f.name); } }
+    if (ok.length){ epCC = ok[0]; saveEp(); }
+    render(); toast(ok.length ? `Balances base cargados: ${ok.join(', ')}${bad.length?` · no se pudo leer: ${bad.join(', ')}`:''}` : 'No se pudo leer ningún balance');
+  };
+  $('main').querySelectorAll('[data-epsel]').forEach(b=>b.onclick = ()=>{ epCC = b.dataset.epsel; render(); });
+  if ($('epDl')) $('epDl').onclick = async ()=>{ try { const f = await fillBalance(ep.templates[epCC], R, y, m); offerFile(f.name, f.blob); } catch(e){ toast('No se pudo generar el balance'); } };
+  $('epAll').onclick = async ()=>{ for (const cc of CC_LIST.filter(c=>ep.templates[c])){ try { const f = await fillBalance(ep.templates[cc], R, y, m); if (!(await offerFile(f.name, f.blob))) break; } catch(e){ toast('No se pudo generar el balance '+cc); } await new Promise(r=>setTimeout(r,700)); } };
+  $('epLev').onclick = ()=>{ const X = window.XLSX; if (!X){ toast('No se pudo cargar el generador de Excel'); return; }
+    offerFile(`Levantamiento_columnas_${y}.xlsx`, new Blob([X.write(buildLevantamiento(X, y), {bookType:'xlsx', type:'array'})])); };
+}
+document.addEventListener('change', e=>{
+  const x = e.target;
+  if (x.dataset.epcc!==undefined){ const it = itemOf(x.dataset.epcc); if (!it) return; if (x.value) it.cc = x.value; else delete it.cc; render(); toast(`${it.label}: centro de costo ${x.value||'sin asignar'}`); return; }
+  if (x.dataset.epq!==undefined || x.dataset.epo!==undefined){
+    const mk = epMK(ui.y, ui.m), rn = x.dataset.epq ?? x.dataset.epo, slot = ((ep.manual[mk] ||= {})[epCC] ||= {});
+    const cur = slot[rn] || (()=>{ const t = ep.templates[epCC], row = t.rows.find(r=>String(r.rn)===String(rn)); return epQty(t,row,edpMonth(ui.y,ui.m),mk); })();
+    slot[rn] = {q: x.dataset.epq!==undefined ? Math.max(0,+x.value||0) : +cur.q||0, obs: x.dataset.epo!==undefined ? x.value : (cur.obs||'')};
+    saveEp(); render();
+  }
+});
+
+/* ---------- Levantamiento de columnas: inicio (I), término (T) y meses completos (X) ---------- */
+function buildLevantamiento(X, y){
+  const wb = X.utils.book_new(), hoy = new Date(), bd = {style:'thin', color:{rgb:'C9D1DC'}}, border = {top:bd, bottom:bd, left:bd, right:bd};
+  const F = (o={}) => ({name:'Calibri', sz:11, ...o});
+  const ST = {
+    title:{font:F({sz:16, bold:true, color:{rgb:'1F3864'}})}, sub:{font:F({sz:10, italic:true, color:{rgb:'595959'}})},
+    head:{font:F({bold:true, color:{rgb:'FFFFFF'}}), fill:{fgColor:{rgb:'1F3864'}}, alignment:{horizontal:'center', vertical:'center', wrapText:true}, border},
+    cell:{font:F(), alignment:{horizontal:'center', vertical:'center'}, border}, left:{font:F(), alignment:{horizontal:'left', vertical:'center'}, border},
+    foot:{font:F({bold:true}), fill:{fgColor:{rgb:'E7ECF3'}}, alignment:{horizontal:'center', vertical:'center'}, border},
+    I:{font:F({bold:true, color:{rgb:'006100'}}), fill:{fgColor:{rgb:'C6EFCE'}}, alignment:{horizontal:'center'}, border},
+    T:{font:F({bold:true, color:{rgb:'9C0006'}}), fill:{fgColor:{rgb:'FFC7CE'}}, alignment:{horizontal:'center'}, border},
+    IT:{font:F({bold:true, color:{rgb:'7F6000'}}), fill:{fgColor:{rgb:'FFEB9C'}}, alignment:{horizontal:'center'}, border},
+    X:{font:F({color:{rgb:'1F3864'}}), fill:{fgColor:{rgb:'DDEBF7'}}, alignment:{horizontal:'center'}, border},
+  };
+  const proSheet = (title, sub, headers, rows, foot, widths, styler) => {
+    const n = headers.length, aoa = [[title], [sub], [], headers, ...rows, ...foot];
+    const ws = X.utils.aoa_to_sheet(aoa);
+    ws['!merges'] = [{s:{r:0,c:0}, e:{r:0,c:n-1}}, {s:{r:1,c:0}, e:{r:1,c:n-1}}];
+    for (let r=0; r<aoa.length; r++) for (let c=0; c<n; c++){
+      const ref = X.utils.encode_cell({r,c}); let cell = ws[ref];
+      if (r<3){ if (cell) cell.s = r===0 ? ST.title : ST.sub; continue; }
+      if (!cell) cell = ws[ref] = {t:'s', v:''};
+      if (r===3) cell.s = ST.head;
+      else if (r >= 4+rows.length) cell.s = c===0 ? {...ST.foot, alignment:{horizontal:'left'}} : ST.foot;
+      else cell.s = (styler && styler(r-4, c, cell.v)) || (typeof cell.v==='number' || c>0 ? ST.cell : ST.left);
+    }
+    ws['!cols'] = widths.map(w=>({wch:w}));
+    ws['!rows'] = [{hpt:26}, {hpt:16}, {hpt:8}, {hpt:30}];
+    ws['!autofilter'] = {ref: X.utils.encode_range({s:{r:3,c:0}, e:{r:3+rows.length, c:n-1}})};
+    return ws;
+  };
+  const log = columnLog(), sub = `Calendario Operacional · generado el ${fmtD(hoy)} ${hm(hoy)} · I = inicio (carga) · T = término (descarga) · X = mes completo en operación`;
+  const cell = (c, m) => { const d = colDays(c,y,m); if (!d) return '';
+    const s = c.start && c.start.getFullYear()===y && c.start.getMonth()===m, e = c.end && c.end.getFullYear()===y && c.end.getMonth()===m && !(c.start && c.end<c.start);
+    if (s && e) return `I${pad(c.start.getDate())} · T${pad(c.end.getDate())}`; if (s) return `I${pad(c.start.getDate())}`; if (e) return `T${pad(c.end.getDate())}`;
+    return d >= new Date(y,m+1,0).getDate() ? 'X' : `${d} d`; };
+  const cols = log.filter(c=>MONS.some((_,m)=>colDays(c,y,m)>0));
+  const activa = c => colDays(c, hoy.getFullYear(), hoy.getMonth())>0 && (!c.end || c.end<c.start || day0(c.end)>=day0(hoy)) ? 'SI' : 'NO';
+  const yd = c => MONS.reduce((s,_,m)=>s+colDays(c,y,m),0);
+  const rows1 = cols.map(c=>[c.n, c.cc||'Sin CC', activa(c), ...MONS.map((_,m)=>cell(c,m)), yd(c), c.start ? '' : 'Sin carga registrada: se cuenta desde el día 1 del mes de su lavado']);
+  const cnt = f => MONS.map((_,m)=>cols.filter(c=>f(c,m)).length);
+  const foot1 = [
+    ['Columnas en operación','','', ...cnt((c,m)=>colDays(c,y,m)>0), cols.length, ''],
+    ['Inicios (carga)','','', ...cnt((c,m)=>c.start && c.start.getFullYear()===y && c.start.getMonth()===m), cols.filter(c=>c.start && c.start.getFullYear()===y).length, ''],
+    ['Términos (descarga)','','', ...cnt((c,m)=>c.end && !(c.start && c.end<c.start) && c.end.getFullYear()===y && c.end.getMonth()===m), cols.filter(c=>c.end && c.end.getFullYear()===y).length, ''],
+  ];
+  const styler = (r,c,v) => { if (c===16) return {...ST.left, font:F({sz:10, italic:true, color:{rgb:'7F6000'}})}; if (c<3 || c>14 || !v) return null; const s = String(v); return s.includes('·') ? ST.IT : s[0]==='I' ? ST.I : s[0]==='T' ? ST.T : s==='X' ? ST.X : null; };
+  X.utils.book_append_sheet(wb, proSheet(`Levantamiento de columnas · ${y}`, sub, ['Columna','CC','Activa hoy', ...MONS, `Días ${y}`, 'Observación'], rows1, foot1, [10,9,10, ...MONS.map(()=>11), 10, 52], styler), `COLUMNAS ${y}`);
+  const ccs = CC_LIST.concat(log.some(c=>!c.cc) ? [''] : []);
+  const daysCC = cc => MONS.map((_,m)=>cols.filter(c=>c.cc===cc).reduce((s,c)=>s+colDays(c,y,m),0));
+  const rows2 = ccs.map(cc=>{ const d = daysCC(cc); return [cc||'Sin CC', CC_NAME[cc], ...d, d.reduce((s,x)=>s+x,0)]; });
+  const foot2 = [['Total', '', ...MONS.map((_,m)=>rows2.reduce((s,r)=>s+r[m+2],0)), rows2.reduce((s,r)=>s+r[14],0)]];
+  X.utils.book_append_sheet(wb, proSheet(`Días-columna por centro de costo · ${y}`, sub, ['CC','Centro de costo', ...MONS, 'Total'], rows2, foot2, [9,26, ...MONS.map(()=>9), 10]), 'DIAS POR CC');
+  const rows3 = cols.map(c=>[c.n, c.cc||'Sin CC', ...MONS.map((_,m)=>colDays(c,y,m)||''), yd(c)]);
+  const foot3 = [['Total', '', ...MONS.map((_,m)=>cols.reduce((s,c)=>s+colDays(c,y,m),0)), cols.reduce((s,c)=>s+yd(c),0)]];
+  X.utils.book_append_sheet(wb, proSheet(`Días de operación por columna · ${y}`, sub, ['Columna','CC', ...MONS, 'Total'], rows3, foot3, [10,9, ...MONS.map(()=>8), 10]), 'DIAS POR COLUMNA');
+  return wb;
+}
+
+/* ---------- Respaldo ---------- */
+const stamp = () => { const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`; };
+function downloadBlob(blob, name){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1500); }
+const serial = d => (Date.UTC(d.getFullYear(),d.getMonth(),d.getDate(),d.getHours(),d.getMinutes()) - Date.UTC(1899,11,30))/864e5;
+const numOr = v => (v!=='' && v!=null && /^\d+(\.\d+)?$/.test(String(v).trim())) ? +v : (v ?? '');
+function makeSheet(X, headers, rows, widths, dateOnly, bandCol){
+  const ws = {}, bd = {style:'thin',color:{rgb:'BFBFBF'}}, border = {top:bd,bottom:bd,left:bd,right:bd};
+  const all = [headers, ...rows];
+  let band = false, prevKey = null; const bands = [false];
+  rows.forEach(row=>{ const v=row[bandCol]; const k = v instanceof Date ? dkey(v) : String(v); if (bandCol!=null && k!==prevKey){ band=!band; prevKey=k; } bands.push(band); });
+  all.forEach((row,r)=>row.forEach((v,c)=>{
+    const ref = X.utils.encode_cell({r,c}); let cell;
+    if (v instanceof Date) cell = dateOnly ? {t:'n', v:Math.floor(serial(v)), z:'dd-mm-yyyy'} : {t:'n', v:serial(v), z:(v.getHours()||v.getMinutes())?'dd-mm-yyyy hh:mm':'dd-mm-yyyy'};
+    else if (typeof v==='number') cell = {t:'n', v};
+    else cell = {t:'s', v:String(v??'')};
+    cell.s = r===0 ? {font:{bold:true,color:{rgb:'FFFFFF'}},fill:{fgColor:{rgb:'1F4E78'}},alignment:{horizontal:'center',vertical:'center',wrapText:true},border}
+                   : {alignment:{horizontal: (v instanceof Date||typeof v==='number'||v==='Sí'||v==='No')?'center':'left', vertical:'center',wrapText:true},border};
+    if (r>0 && bandCol!=null && bands[r]) cell.s.fill = {fgColor:{rgb:'DDEBF7'}};
+    if (r>0 && v==='Sí') cell.s.font = {bold:true,color:{rgb:'006100'}};
+    if (r>0 && v==='No') cell.s.font = {bold:true,color:{rgb:'C00000'}};
+    ws[ref] = cell;
+  }));
+  ws['!ref'] = X.utils.encode_range({s:{r:0,c:0}, e:{r:Math.max(all.length-1,0), c:headers.length-1}});
+  ws['!cols'] = (widths||headers.map(()=>16)).map(w=>({wch:w}));
+  ws['!autofilter'] = {ref: ws['!ref']};
+  return ws;
+}
+function buildWorkbook(X){
+  const wb = X.utils.book_new();
+  const dt = s => s ? parse(s.at) : '';
+  const fd = v => v ? parse(v) : '';
+  const by = (i,re) => i.stages.find(s=>re.test(s.name));
+  const DIA = d => d instanceof Date ? DAYN[d.getDay()].replace(/^./,c=>c.toUpperCase()) : '';
+  const sortBy = re => (a,b)=>{ const x=by(a,re), y=by(b,re); return (x?x.at:'9').localeCompare(y?y.at:'9'); };
+  const carga = state.items.filter(i=>i.typeId==='carga').sort(sortBy(/^carga/i)).map(i=>{ const f=i.fields||{}, r=i.stages.filter(s=>/riego/i.test(s.name)).slice(0,5), c=dt(by(i,/^carga/i));
+    return [numOr(i.label), c, DIA(c), f.thum||'', f.trep||'', numOr(f.trieg), dt(r[0]), dt(r[1]), dt(r[2]), dt(r[3]), dt(r[4]), [f.obs,i.notes].filter(Boolean).join(' · '), dt(by(i,/soluci/i))]; });
+  X.utils.book_append_sheet(wb, makeSheet(X, ['ID COLUMNA','DIA DE CARGA','DÍA','T° humectación ','T° Reposo ','T ° Riego','INICIO RIEGO 1','INICIO RIEGO 2','INICIO RIEGO 3','INICIO RIEGO 4','INICIO RIEGO 5','Observación','PREPARACIÓN SOLUCIONES'], carga, [13,14,11,15,12,10,15,15,15,15,15,40,16], true, 1), 'CARGA COLUMNAS');
+  const desc = state.items.filter(i=>i.typeId==='desc').sort(sortBy(/^descarga/i)).map(i=>{ const f=i.fields||{}, d=dt(by(i,/^descarga/i));
+    return [numOr(i.label), dt(by(i,/lavado/i)), dt(by(i,/drenaje/i)), d, DIA(d), dt(by(i,/sacar|pesaje/i)), f.ripio?'Sí':'No', f.feriado?fd(f.feriado):'-', f.envios||'', f.area||'', numOr(f.mineral), f.analisis||'', dt(by(i,/ingreso/i))]; });
+  X.utils.book_append_sheet(wb, makeSheet(X, ['ID COLUMNA','INICIO LAVADO','INICIO DRENAJE','DESCARGA Y MUESTREO','DÍA','SACAR DEL HORNO','RIPIO ENVIADO A PROCESAMIENTO','CONSIDERACION FERIADO','Envios','Columna1','Columna2','analisis','INGRESO HORNO'], desc, [13,15,15,16,11,17,16,22,9,11,11,11,15], true, 3), 'LAVADO Y DESCARGA');
+  // Resumen por día de cargas y descargas
+  const days = {}; const add = (d,k,txt)=>{ if (!(d instanceof Date)) return; const key=dkey(d); (days[key] ||= {d, carga:[],riego:[],lavado:[],drenaje:[],descarga:[],horno:[],sacar:[],pend:[]})[k].push(txt); };
+  state.items.filter(i=>i.typeId==='carga').forEach(i=>{ add(dt(by(i,/^carga/i)),'carga',i.label); i.stages.filter(s=>/riego/i.test(s.name)).forEach(s=>add(parse(s.at),'riego',`${i.label} (${s.name.replace(/inicio /i,'')})`)); });
+  state.items.filter(i=>i.typeId==='desc').forEach(i=>{ add(dt(by(i,/lavado/i)),'lavado',i.label); add(dt(by(i,/drenaje/i)),'drenaje',i.label); add(dt(by(i,/^descarga/i)),'descarga',i.label); add(dt(by(i,/ingreso/i)),'horno',i.label);
+    const sc=dt(by(i,/sacar|pesaje/i)); add(sc,'sacar',i.label); if (!(i.fields&&i.fields.ripio)) add(sc,'pend',i.label); });
+  const res = Object.values(days).sort((a,b)=>a.d-b.d).map(x=>[x.d, DIA(x.d), x.carga.join(', '), x.riego.join(', '), x.lavado.join(', '), x.drenaje.join(', '), x.descarga.join(', '), x.horno.join(', '), x.sacar.join(', '), x.pend.join(', ')]);
+  X.utils.book_append_sheet(wb, makeSheet(X, ['FECHA','DÍA','CARGA COLUMNAS','INICIO RIEGO','INICIO LAVADO','INICIO DRENAJE','DESCARGA Y MUESTREO','INGRESO HORNO','SACAR DEL HORNO / PESAJE','RIPIO PENDIENTE DE ENVÍO'], res, [13,11,22,24,18,18,18,18,22,22], true, 0), 'RESUMEN POR DÍA');
+  const envRow = e=>[e.fecha?parse(e.fecha):'', e.cc||'', CC_NAME[e.cc]||'', numOr(e.muestra), e.horno?parse(e.horno):'', e.recep?parse(e.recep):'-', e.analisis||'', e.envProc?'Sí':'No', e.envAna?'Sí':(isNA(e.analisis)?'N/A':'No'), e.tipo||'Ripio'];
+  const envH = ['Fecha envío','CC','Centro de costo','ID Muestra','Salida del horno','Fecha Recepción','Analisis','Enviado a procesamiento','Enviado a análisis','Tipo'], envW = [13,8,22,26,14,15,42,14,12,10];
+  const envAll = state.envios.filter(e=>!e.del).slice().sort((a,b)=>(a.fecha||a.horno||'').localeCompare(b.fecha||b.horno||''));
+  X.utils.book_append_sheet(wb, makeSheet(X, envH, envAll.filter(e=>!envDone(e)).map(envRow), envW, true, 0), 'ENVIO A PROCESAMIENTO');
+  X.utils.book_append_sheet(wb, makeSheet(X, [...envH, 'Completo desde'], envAll.filter(envDone).map(e=>[...envRow(e), e.doneAt?new Date(e.doneAt):'']), [...envW, 17], true, 0), 'ENVIADOS');
+  const ev = []; state.items.forEach(it=>{ const t=typeOf(it.typeId); it.stages.forEach((s,i)=>{ const d=parse(s.at); ev.push([phaseName(t,s), numOr(it.label), opOf(it,s), `${i+1}/${it.stages.length}`, s.name, d, ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'][d.getDay()], s.done?'Hecha':'Pendiente', outOfRange(s)?'Sí':'', fieldTxt(it).join(' · '), it.notes||'']); }); });
+  ev.sort((a,b)=>a[5]-b[5]);
+  X.utils.book_append_sheet(wb, makeSheet(X, ['Tipo de actividad','Muestra / columna','Operador','N° etapa','Etapa','Fecha','Día','Estado','Fuera de rango (fin de semana)','Datos','Notas'], ev, [34,18,10,9,40,17,11,11,16,40,30]), 'TODAS LAS ACTIVIDADES');
+  const done = state.items.filter(isDone).sort((a,b)=>(a.completedAt||'').localeCompare(b.completedAt||'')).map(it=>{ const ds=it.stages.map(s=>parse(s.at));
+    return [typeOf(it.typeId).name, numOr(it.label), new Date(Math.min(...ds)), new Date(Math.max(...ds)), it.completedAt?new Date(it.completedAt):'', it.stages.map((s,i)=>`${i+1}. ${s.name} (${fmtD(parse(s.at))} ${hm(parse(s.at))})`).join(' | '), fieldTxt(it).join(' · '), it.notes||'']; });
+  X.utils.book_append_sheet(wb, makeSheet(X, ['Tipo de actividad','Muestra / columna','Inicio','Término','Completada el','Etapas','Datos','Notas'], done, [34,18,17,17,17,70,40,30]), 'COMPLETADAS');
+  const del = (state.deleted||[]).slice().sort((a,b)=>(b.deletedAt||'').localeCompare(a.deletedAt||'')).map(it=>{ const ds=it.stages.map(s=>parse(s.at)), t=state.types.find(x=>x.id===it.typeId)||{fields:[]};
+    const ft=(t.fields||[]).filter(f=>it.fields&&it.fields[f.key]).map(f=>`${f.label}: ${it.fields[f.key]}`).join(' · ');
+    return [new Date(it.deletedAt), it.typeName||t.name||'', numOr(it.label), it.reason||'', ds.length?new Date(Math.min(...ds)):'', ds.length?new Date(Math.max(...ds)):'', it.stages.map((s,i)=>`${i+1}. ${s.name} (${fmtD(parse(s.at))} ${hm(parse(s.at))})${s.done?' ✓':''}`).join(' | '), ft, it.notes||'']; });
+  X.utils.book_append_sheet(wb, makeSheet(X, ['Eliminada el','Tipo de actividad','Muestra / columna','Motivo','Inicio','Término','Etapas','Datos','Notas'], del, [17,30,18,30,17,17,70,40,30]), 'ELIMINADAS');
+  const json = JSON.stringify(state), rows = [];
+  for (let i=0;i<json.length;i+=30000) rows.push([json.slice(i,i+30000)]);
+  const wr = makeSheet(X, ['RESPALDO DEL CALENDARIO · no modificar esta hoja · '+new Date().toLocaleString('es-CL')], rows, [120]);
+  X.utils.book_append_sheet(wb, wr, 'RESPALDO');
+  return wb;
+}
+function backupModal(){
+  const X = window.XLSX;
+  const last = bk.last ? new Date(bk.last) : null;
+  openModal(`${head('Respaldo','Descarga un archivo con la fecha de hoy en el nombre. Guárdalo en una carpeta de respaldos; con ese mismo archivo puedes recuperar todo el calendario.')}
+    <div class="bkbox">
+      <b>Respaldo en Excel</b>
+      <span class="hint">Hojas: CARGA COLUMNAS, LAVADO Y DESCARGA, RESUMEN POR DÍA, ENVIO A PROCESAMIENTO, TODAS LAS ACTIVIDADES, COMPLETADAS, ELIMINADAS (trazabilidad) y RESPALDO (para volver a cargar).</span>
+      <div class="bar"><button class="pri" type="button" id="bXlsx" ${X?'':'disabled'}>Descargar Respaldo_calendario_operacional_${stamp()}.xlsx</button><button type="button" id="bJson">Descargar .json</button></div>
+      ${X?'':'<p class="msg">No se pudo cargar el generador de Excel. Usa el respaldo .json.</p>'}
+      <span class="hint">${last?`Último respaldo: ${fmtD(last)} ${hm(last)}`:'Aún no has descargado un respaldo.'} · ${state.items.length} actividades · ${(state.deleted||[]).length} eliminadas registradas · ${state.types.length} tipos</span>
+    </div>
+    <div class="bkbox">
+      <b>Respaldo automático cada 30 segundos</b>
+      <span class="hint">Mientras el calendario esté abierto, cada 30 segundos se guarda una copia si hubo cambios (se conservan las últimas ${AUTO_MAX} en este navegador). Si algo se borra o se cambia por error, restaura una copia anterior.</span>
+      <div id="bAutoList"></div>
+      ${window.showSaveFilePicker ? `<div class="bar"><button type="button" id="bAutoFile">${autoFile ? 'Cambiar archivo de respaldo automático' : 'Guardar también en un archivo Excel cada 30 s…'}</button></div>
+      <span class="hint" id="bAutoFileMsg">${esc(autoFileMsg || (autoFile ? '' : 'Elige un archivo (por ejemplo en tu carpeta de OneDrive o Escritorio): se sobrescribe con cada cambio. Al recargar la página hay que volver a activarlo.'))}</span>` : ''}
+    </div>
+    <div class="bkbox">
+      <b>Cargar un respaldo</b>
+      <span class="hint">Elige un respaldo .xlsx o .json descargado antes (también sirve uno de la versión anterior del calendario). Reemplaza todo lo que hay ahora en este calendario.</span>
+      <input type="file" id="bFile" accept=".xlsx,.json,application/json" aria-label="Archivo de respaldo">
+      <p class="msg" id="bMsg" hidden></p>
+      <div class="bar"><button class="pri" type="button" id="bLoad" disabled>Cargar y reemplazar</button></div>
+    </div>
+    <details><summary>Copiar o pegar el respaldo como texto</summary>
+      <div class="fld" style="margin-top:8px"><textarea id="bOut" rows="4" readonly>${esc(JSON.stringify(state))}</textarea></div>
+      <div class="bar" style="margin-top:6px"><button type="button" id="bCopy">Copiar texto</button></div>
+      <div class="fld" style="margin-top:8px"><textarea id="bIn" rows="3" placeholder="Pega aquí el texto de un respaldo"></textarea></div>
+      <div class="bar" style="margin-top:6px"><button type="button" id="bPaste">Cargar texto pegado</button></div>
+    </details>
+    <div class="mf"><button class="danger" type="button" id="bReset">Dejar en blanco</button><button type="button" data-close>Cerrar</button></div>`);
+  let pending = null;
+  const fail = t => { const m=$('bMsg'); m.hidden=false; m.textContent=t; };
+  const apply = s => { if (!s || !Array.isArray(s.types) || !Array.isArray(s.items)) throw 0; state = s; migrate(); const nf = normalizeWeekends(); if (nf) setTimeout(()=>toast(`${nf} etapa${nf>1?'s':''} de horno/secado se corrieron al siguiente día hábil`),2800); markBackup(); closeModal(); toast(`Respaldo cargado: ${state.items.length} actividades`); };
+  $('bXlsx').onclick = async ()=>{
+    try { const buf = X.write(buildWorkbook(X), {bookType:'xlsx', type:'array'});
+      if (await offerFile(`Respaldo_calendario_operacional_${stamp()}.xlsx`, new Blob([buf]))){ markBackup(); toast('Respaldo Excel descargado'); } }
+    catch(e){ fail('No se pudo generar el Excel: '+e.message); }
+  };
+  const drawAuto = ()=>{
+    const list = autoList().slice().reverse();
+    $('bAutoList').innerHTML = list.length ? `<div class="autol">${list.map((a,k)=>{ const d = new Date(a.t);
+      return `<div class="autor"><span>${fmtD(d)} ${hm(d)}:${pad(d.getSeconds())}</span><span class="hint">${a.n} actividades${k===0?' · la más reciente':''}</span><button type="button" data-autorest="${a.t}">Restaurar</button></div>`; }).join('')}</div>`
+      : '<span class="hint">Todavía no hay copias automáticas (la primera se guarda a los pocos segundos de abrir el calendario).</span>';
+  };
+  drawAuto();
+  $('bAutoList').onclick = e=>{
+    const b = e.target.closest('[data-autorest]'); if (!b) return;
+    const a = autoList().find(x=>x.t===b.dataset.autorest); if (!a) return;
+    const d = new Date(a.t);
+    if (!confirm(`¿Restaurar la copia del ${fmtD(d)} ${hm(d)}? Lo que hay ahora queda guardado como otra copia automática.`)) return;
+    autoSnap(true);
+    try { apply(JSON.parse(a.j)); save(); render(); } catch(err){ toast('No se pudo restaurar esa copia'); }
+  };
+  if ($('bAutoFile')) $('bAutoFile').onclick = async ()=>{
+    try { autoFile = await window.showSaveFilePicker({suggestedName:'Respaldo_calendario_operacional_AUTOMATICO.xlsx', types:[{description:'Excel', accept:{'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':['.xlsx']}}]});
+      await autoFileWrite(true); $('bAutoFile').textContent = 'Cambiar archivo de respaldo automático'; toast('Respaldo automático en archivo activado'); }
+    catch(err){ if (err && err.name!=='AbortError') toast('No se pudo activar el archivo de respaldo'); }
+  };
+  $('bJson').onclick = async ()=>{ if (await offerFile(`Respaldo_calendario_operacional_${stamp()}.json`, JSON.stringify(state,null,1))){ markBackup(); toast('Respaldo .json descargado'); } };
+  $('bFile').onchange = e=>{
+    const f = e.target.files[0]; if (!f) return; $('bMsg').hidden = true; pending = null; $('bLoad').disabled = true;
+    const r = new FileReader();
+    if (/\.xlsx$/i.test(f.name)){
+      r.onload = ()=>{ try { const wb = X.read(new Uint8Array(r.result),{type:'array'}); const ws = wb.Sheets['RESPALDO']; if (!ws) throw 0;
+        const rows = X.utils.sheet_to_json(ws,{header:1}).slice(1).map(x=>x[0]||'').join(''); pending = JSON.parse(rows); $('bLoad').disabled=false; }
+        catch(_){ fail('Ese Excel no tiene la hoja RESPALDO de este calendario.'); } };
+      r.readAsArrayBuffer(f);
+    } else { r.onload = ()=>{ try { pending = JSON.parse(r.result); $('bLoad').disabled=false; } catch(_){ fail('El archivo no es un respaldo válido.'); } }; r.readAsText(f); }
+  };
+  $('bLoad').onclick = ()=>{ try { apply(pending); } catch(_){ fail('El archivo no es un respaldo válido de este calendario.'); } };
+  $('bCopy').onclick = ()=>{ const ta=$('bOut'); ta.select(); (navigator.clipboard?.writeText(ta.value)||Promise.reject()).then(()=>toast('Texto copiado'),()=>toast('Copia con Ctrl+C')); };
+  $('bPaste').onclick = ()=>{ try { apply(JSON.parse($('bIn').value)); } catch(_){ fail('El texto no es un respaldo válido. Revisa que lo copiaste completo.'); } };
+  $('bReset').onclick = e=>{ const b=e.currentTarget; if(!b.classList.contains('arm')){ b.classList.add('arm'); b.textContent='Confirmar: borrar todo'; return; } const keep=(state.deleted||[]).slice(); state.items.forEach(it=>{ if(!it.sample) keep.push({...it, did:uid(), typeName:typeOf(it.typeId).name, deletedAt:new Date().toISOString(), reason:'Calendario dejado en blanco'}); }); state=sampleState(); state.deleted=keep; closeModal(); toast('Calendario en blanco; lo anterior queda en ELIMINADAS del respaldo'); };
+}
+
+/* ---------- Eventos globales ---------- */
+document.addEventListener('click', e=>{
+  const pr = e.target.closest('[data-print]'); if (pr){ printDay(pr.dataset.print); return; }
+  const eck = e.target.closest('[data-eck]');
+  if (eck){
+    const [id,f] = eck.dataset.eck.split('|'), en = state.envios.find(x=>x.id===id); if (!en) return;
+    const was = envDone(en); en[f] = !en[f];
+    /* Al marcar «Env. proc.» la fecha de envío pasa a ser siempre la de hoy (el día en que se marcó); al desmarcarlo vuelve la que tenía antes */
+    if (f==='envProc'){
+      if (en.envProc){ en.fechaPrev = en.fecha || ''; en.fecha = dkey(new Date()); en.fechaAuto = 1; if (en.from) en.edF = 1; }
+      else if (en.fechaAuto){ en.fecha = en.fechaPrev || ''; delete en.fechaAuto; delete en.fechaPrev; }
+    }
+    render();
+    const now = envDone(en);
+    toast(`${en.muestra||'Envío'}: ${en[f]?'enviado':'no enviado'} a ${f==='envProc'?'procesamiento':'análisis'}${en[f]?' ✓':''}${now && !was ? ' · pasa al historial' : !now && was ? ' · vuelve a pendientes' : ''}`); return;
+  }
+  const del = e.target.closest('[data-edel]');
+  if (del){
+    if (!del.classList.contains('arm')){ del.classList.add('arm'); del.textContent='¿Quitar?'; return; }
+    const en = state.envios.find(x=>x.id===del.dataset.edel); if (!en) return;
+    if (en.from) en.del = true; else state.envios = state.envios.filter(x=>x!==en);
+    render(); toast(`${en.muestra||'Envío'} quitado de la lista`); return;
+  }
+  const b = e.target.closest('[data-ck],[data-close],[data-openday],[data-open],.chip,[data-toggle]');
+  if (!b) return;
+  if (b.matches('[data-ck]')){
+    const [id,i] = b.dataset.ck.split('|'), it = itemOf(id); if (!it || !it.stages[+i]) return;
+    const s = it.stages[+i]; setDone(s, !s.done); if (it.sample) delete it.sample; syncDone(it); render();
+    toast(isDone(it) ? `${typeOf(it.typeId).name} · ${it.label}: completada` : `${s.name}: ${s.done?'hecha ✓':'pendiente'}`);
+    return;
+  }
+  if (b.matches('[data-close]')) return closeModal();
+  if (b.matches('.chip')) return itemModal(b.dataset.item);
+  if (b.matches('[data-openday]')) return dayModal(b.dataset.openday);
+  if (b.matches('[data-toggle]')){ const id=b.dataset.toggle; ui.hidden.has(id)?ui.hidden.delete(id):ui.hidden.add(id); saveUi(); return render(); }
+  if (b.matches('[data-open]') && !e.target.matches('input') && !e.target.closest('.opk')) return itemModal(b.dataset.open);
+});
+document.addEventListener('keydown', e=>{ const t=e.target.closest?.('[data-toggle],.chip .cb'); if (t && (e.key==='Enter'||e.key===' ')){ e.preventDefault(); t.click(); }});
+/* Envíos: lo que se escribe se guarda al instante (sin esperar a salir del campo) */
+document.addEventListener('input', e=>{ const x=e.target; if (!x.dataset || !x.dataset.ef || x.tagName==='SELECT') return;
+  const row = x.closest('[data-env]'); const en = row && state.envios.find(v=>v.id===row.dataset.env); if (!en) return;
+  en[x.dataset.ef] = x.value; if (en.from && x.dataset.ef==='muestra') en.edM=1; save(); });
+document.addEventListener('change', e=>{ const x=e.target;
+  if (x.dataset.ef){ const en = state.envios.find(v=>v.id===x.closest('[data-env]').dataset.env); if (!en) return; const k = x.dataset.ef;
+    en[k] = x.value; if (k==='fecha') delete en.fechaAuto; if (en.from){ if (k==='fecha') en.edF=1; if (k==='muestra') en.edM=1; if (k==='cc') en.edC=1; }
+    if (k==='analisis'){ if (x.value && x.value!==anAuto(en)) en.edA=1; else delete en.edA; }   // vacío o el de su CC = automático
+    if (k==='analisis' || k==='cc'){ const was = !!en.doneAt; syncEnvios(); render(); if (!was && en.doneAt) toast(`${en.muestra||'Envío'}: completo, pasa al historial`); return; }
+    if (k==='fecha') render(); else save(); return; }
+  const ag = x.closest && x.closest('[data-agop]');
+  if (ag){ const [id,i]=ag.dataset.agop.split('|'); const it=itemOf(id); if (!it) return; const s=it.stages[+i], v=opRead(ag);
+    if (v) s.op=v; else delete s.op; if (it.sample) delete it.sample; save(); toast(`${s.name}: ${v || (it.op ? 'responsables '+it.op : 'sin operador')}`); return; }
+  if (x.dataset.done){ const [id,i]=x.dataset.done.split('|'); const it=itemOf(id); setDone(it.stages[+i], x.checked); syncDone(it); render(); if (isDone(it)) toast(`${typeOf(it.typeId).name} · ${it.label}: completada`); }});
+$('prev').onclick = ()=>{ ui.m--; if(ui.m<0){ui.m=11;ui.y--;} render(); };
+$('next').onclick = ()=>{ ui.m++; if(ui.m>11){ui.m=0;ui.y++;} render(); };
+$('btnMore').onclick = ()=>{ const m = $('more'), o = m.hidden; m.hidden = !o; $('btnMore').setAttribute('aria-expanded', o); $('btnMore').textContent = o ? 'Menos opciones ▴' : 'Más opciones ▾'; };
+if ($('today')) $('today').onclick =()=>{ const n=new Date(); ui.y=n.getFullYear(); ui.m=n.getMonth(); render(); };
+$('vMonth').onclick = ()=>{ ui.view='month'; render(); };
+$('vAgenda').onclick = ()=>{ ui.view='agenda'; render(); };
+$('vDone').onclick = ()=>{ ui.view='done'; render(); };
+$('vEnv').onclick = ()=>{ ui.view='envios'; render(); };
+$('vEp').onclick = ()=>{ ui.view='ep'; render(); };
+$('fOp').onchange = e=>{ ui.op = e.target.value; render(); };
+$('pDay').value = dkey(new Date());
+$('pBtn').onclick = ()=>{ const v = $('pDay').value; if (v) printDay(v); else toast('Elige el día que quieres imprimir'); };
+$('q').oninput = e=>{ ui.q=e.target.value.trim().toLowerCase(); render(); };
+$('btnNew').onclick = ()=>newModal();
+$('btnTypes').onclick = typesModal;
+$('btnOps').onclick = opsModal;
+$('btnBackup').onclick = backupModal;
+$('bkStatus').onclick = backupModal;
+$('btnClearSamples').onclick = ()=>{ state.items = state.items.filter(i=>!i.sample); render(); toast('Ejemplos borrados'); };
+
+render();
+if (fixedOnLoad) toast(`${fixedOnLoad} etapa${fixedOnLoad>1?'s':''} de horno/secado estaba${fixedOnLoad>1?'n':''} en fin de semana y se corri${fixedOnLoad>1?'eron':'ó'} al siguiente día hábil`);
+})();
+</script>
+</body>
+</html>
